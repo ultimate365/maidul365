@@ -11,6 +11,45 @@ export default function FileConverter() {
   const [conversionData, setConversionData] = useState(null);
   const [conversionFileName, setConversionFileName] = useState("");
 
+  // --- flatten JSON -> rows ---
+  const flattenData = (data) => {
+    const flattened = [];
+    data.forEach((item) => {
+      if (Array.isArray(item.leaves)) {
+        item.leaves.forEach((leave) => {
+          flattened.push({
+            month: item.month,
+            year: item.year,
+            monthId: item.id, // rename to avoid collision
+            ...leave,
+          });
+        });
+      } else {
+        flattened.push(item);
+      }
+    });
+    return flattened;
+  };
+
+  // --- group rows -> nested JSON ---
+  const nestData = (rows) => {
+    const grouped = {};
+    rows.forEach((row) => {
+      const { month, year, monthId, ...leave } = row;
+      const key = `${month}-${year}`;
+      if (!grouped[key]) {
+        grouped[key] = {
+          month,
+          year,
+          id: monthId || key,
+          leaves: [],
+        };
+      }
+      grouped[key].leaves.push(leave);
+    });
+    return Object.values(grouped);
+  };
+
   const cleanRow = (row) => {
     const cleanedRow = {};
     for (const key in row) {
@@ -93,8 +132,12 @@ export default function FileConverter() {
             Object.values(row).some((v) => v !== null && v !== "")
           )
           .map(cleanRow);
+
+        // 🔥 group into nested JSON
+        const nested = nestData(cleanedData);
+
         downloadFile(
-          JSON.stringify(cleanedData, null, 2),
+          JSON.stringify(nested, null, 2),
           `${fileName}.json`,
           "application/json"
         );
@@ -108,9 +151,13 @@ export default function FileConverter() {
       const data = new Uint8Array(arrayBuffer);
       const workbook = XLSX.read(data, { type: "array" });
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-      const jsonData = XLSX.utils.sheet_to_json(worksheet).map(cleanRow);
+      const rows = XLSX.utils.sheet_to_json(worksheet).map(cleanRow);
+
+      // 🔥 group into nested JSON
+      const nested = nestData(rows);
+
       downloadFile(
-        JSON.stringify(jsonData, null, 2),
+        JSON.stringify(nested, null, 2),
         `${fileName}.json`,
         "application/json"
       );
@@ -123,11 +170,14 @@ export default function FileConverter() {
     if (!conversionData || !conversionFileName) return;
 
     try {
+      // flatten before export
+      const flatData = flattenData(conversionData);
+
       if (format === "csv") {
-        const csv = jsonToCSV(conversionData);
+        const csv = jsonToCSV(flatData);
         downloadFile(csv, `${conversionFileName}.csv`, "text/csv");
       } else if (format === "xlsx") {
-        const worksheet = XLSX.utils.json_to_sheet(conversionData);
+        const worksheet = XLSX.utils.json_to_sheet(flatData);
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "Sheet1");
         const xlsxBuffer = XLSX.write(workbook, {
@@ -172,53 +222,45 @@ export default function FileConverter() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto my-12 px-4">
-      <div className="container-main text-center">
-        <h3 className="text-2xl font-semibold leading-relaxed mb-6">
+    <div className="container my-5">
+      <div className="container-main">
+        <h3>
           File Converter with Format Selection
           <br />
-          <span className="text-sm text-gray-600">
-            (JSON → CSV/XLSX | CSV/Excel → JSON)
-          </span>
+          (JSON → CSV/XLSX | CSV/Excel → JSON)
         </h3>
-
         <input
           type="file"
           id="fileInput"
+          className="form-control"
           accept=".csv,.json,.xlsx,.xls"
           onChange={handleFileUpload}
           multiple
           ref={ref}
-          className="block w-full rounded-md border border-gray-600 bg-gray-900 p-2 text-sm text-white placeholder-gray-400 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-400"
         />
       </div>
 
       {showFormatDialog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-white rounded-lg shadow-lg p-6 max-w-md w-full text-center">
-            <h4 className="text-lg font-semibold mb-4">
-              Select Output Format for{" "}
-              <span className="text-blue-600">{conversionFileName}</span>
-            </h4>
-
-            <div className="flex flex-col gap-3 mb-4">
+        <div className="modal-backdrop">
+          <div className="modal-content">
+            <h4>Select Output Format for {conversionFileName}</h4>
+            <div className="modal-buttons">
               <button
-                className="rounded-lg bg-green-600 px-4 py-2 text-white hover:bg-green-700 transition"
+                className="btn-csv"
                 onClick={() => handleFormatSelection("csv")}
               >
                 Download as CSV
               </button>
               <button
-                className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 transition"
+                className="btn-xlsx"
                 onClick={() => handleFormatSelection("xlsx")}
               >
                 Download as Excel
               </button>
             </div>
-
-            <div>
+            <div className="modal-buttons">
               <button
-                className="rounded-lg bg-gray-300 px-4 py-2 text-gray-800 hover:bg-gray-400 transition"
+                className="btn-cancel"
                 onClick={() => {
                   setShowFormatDialog(false);
                   resetFileInput();
