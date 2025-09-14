@@ -11,8 +11,16 @@ export default function FileConverter() {
   const [conversionData, setConversionData] = useState(null);
   const [conversionFileName, setConversionFileName] = useState("");
 
-  // --- flatten JSON -> rows ---
+  // --- flatten JSON -> rows (only if it matches nested format) ---
   const flattenData = (data) => {
+    if (!Array.isArray(data)) return data;
+
+    const isNestedFormat = data.some(
+      (item) => item && typeof item === "object" && Array.isArray(item.leaves)
+    );
+
+    if (!isNestedFormat) return data;
+
     const flattened = [];
     data.forEach((item) => {
       if (Array.isArray(item.leaves)) {
@@ -20,7 +28,7 @@ export default function FileConverter() {
           flattened.push({
             month: item.month,
             year: item.year,
-            monthId: item.id, // rename to avoid collision
+            monthId: item.id,
             ...leave,
           });
         });
@@ -31,22 +39,36 @@ export default function FileConverter() {
     return flattened;
   };
 
-  // --- group rows -> nested JSON ---
+  // --- group rows -> nested JSON (only if it looks flattened) ---
   const nestData = (rows) => {
+    if (!Array.isArray(rows)) return rows;
+
+    const isFlattenedFormat = rows.some(
+      (row) =>
+        row &&
+        typeof row === "object" &&
+        "month" in row &&
+        "year" in row &&
+        ("monthId" in row || "id" in row)
+    );
+
+    if (!isFlattenedFormat) return rows;
+
     const grouped = {};
     rows.forEach((row) => {
-      const { month, year, monthId, ...leave } = row;
-      const key = `${month}-${year}`;
-      if (!grouped[key]) {
-        grouped[key] = {
+      const { month, year, monthId, id, ...leave } = row;
+      const groupId = monthId || id || `${month}-${year}`;
+      if (!grouped[groupId]) {
+        grouped[groupId] = {
           month,
           year,
-          id: monthId || key,
+          id: groupId,
           leaves: [],
         };
       }
-      grouped[key].leaves.push(leave);
+      grouped[groupId].leaves.push(leave);
     });
+
     return Object.values(grouped);
   };
 
@@ -133,7 +155,6 @@ export default function FileConverter() {
           )
           .map(cleanRow);
 
-        // 🔥 group into nested JSON
         const nested = nestData(cleanedData);
 
         downloadFile(
@@ -153,7 +174,6 @@ export default function FileConverter() {
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json(worksheet).map(cleanRow);
 
-      // 🔥 group into nested JSON
       const nested = nestData(rows);
 
       downloadFile(
@@ -170,7 +190,7 @@ export default function FileConverter() {
     if (!conversionData || !conversionFileName) return;
 
     try {
-      // flatten before export
+      // 🔥 flatten only if nested
       const flatData = flattenData(conversionData);
 
       if (format === "csv") {
