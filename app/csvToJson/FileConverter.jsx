@@ -222,9 +222,9 @@ export default function FileConverter() {
   };
 
   return (
-    <div className="container my-5">
-      <div className="container-main">
-        <h3>
+    <div className="max-w-6xl mx-auto my-12 px-4">
+      <div className="container-main text-center">
+        <h3 className="text-2xl font-semibold leading-relaxed mb-6">
           File Converter with Format Selection
           <br />
           (JSON → CSV/XLSX | CSV/Excel → JSON)
@@ -232,7 +232,7 @@ export default function FileConverter() {
         <input
           type="file"
           id="fileInput"
-          className="form-control"
+          className="block w-full rounded-md border border-gray-600 bg-gray-900 p-2 text-sm text-white placeholder-gray-400 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-400"
           accept=".csv,.json,.xlsx,.xls"
           onChange={handleFileUpload}
           multiple
