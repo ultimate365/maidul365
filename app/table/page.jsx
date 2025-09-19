@@ -7,14 +7,12 @@ export default function Autoresult() {
   const [data, setData] = useState([]);
   const [columsArray, setColumsArray] = useState([]);
   const [values, setValues] = useState([]);
-  const [type, setType] = useState(null);
   const [selectedCols, setSelectedCols] = useState([]);
+  const [dragActive, setDragActive] = useState(false);
+  const [title, setTitle] = useState("");
 
-  const handleChange = async (e) => {
-    const file = e.target.files[0];
+  const processFile = (file) => {
     if (!file) return;
-
-    setType(file.type);
 
     if (file.type === "text/csv") {
       Papa.parse(file, {
@@ -60,6 +58,33 @@ export default function Autoresult() {
     }
   };
 
+  const handleChange = (e) => {
+    const file = e.target.files[0];
+    processFile(file);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      processFile(e.dataTransfer.files[0]);
+    }
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!dragActive) setDragActive(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+  };
+
   const toggleColumn = (col) => {
     if (selectedCols.includes(col)) {
       setSelectedCols(selectedCols.filter((c) => c !== col));
@@ -69,12 +94,27 @@ export default function Autoresult() {
   };
 
   return (
-    <div className="w-screen h-screen p-6 mx-auto bg-white">
+    <div
+      className={`container-fluid ${
+        !data.length && "h-screen"
+      } p-6 mx-auto bg-white`}
+    >
       {/* File Upload */}
-      <div className="flex items-center justify-center w-full noprint">
+      {/* File Upload */}
+      <div
+        onDrop={handleDrop}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        className={`noprint flex items-center justify-center w-full max-w-md mx-auto mb-6 p-6 border-2 rounded-lg cursor-pointer transition 
+          ${
+            dragActive
+              ? "border-blue-500 bg-blue-50"
+              : "border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100"
+          }`}
+      >
         <label
-          htmlFor="inputGroupFile02"
-          className="flex flex-col items-center justify-center w-full max-w-md p-6 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition"
+          htmlFor="fileInput"
+          className="flex flex-col items-center justify-center w-full cursor-pointer"
         >
           <svg
             className="w-10 h-10 mb-3 text-gray-400"
@@ -82,7 +122,6 @@ export default function Autoresult() {
             stroke="currentColor"
             strokeWidth="2"
             viewBox="0 0 24 24"
-            xmlns="http://www.w3.org/2000/svg"
           >
             <path
               strokeLinecap="round"
@@ -91,12 +130,12 @@ export default function Autoresult() {
             ></path>
           </svg>
           <p className="mb-2 text-sm text-gray-500">
-            <span className="font-semibold">Click to upload</span> or drag and
+            <span className="font-semibold">Click to upload</span> or drag &
             drop
           </p>
           <p className="text-xs text-gray-400">CSV, JSON, or XLSX (max 5MB)</p>
           <input
-            id="inputGroupFile02"
+            id="fileInput"
             type="file"
             className="hidden"
             accept=".csv,.json,.xlsx"
@@ -116,7 +155,7 @@ export default function Autoresult() {
               setValues([]);
               setSelectedCols([]);
               if (typeof window !== "undefined") {
-                document.getElementById("inputGroupFile02").value = "";
+                document.getElementById("fileInput").value = "";
               }
             }}
             type="button"
@@ -161,6 +200,18 @@ export default function Autoresult() {
 
       {/* Data table */}
       <div className="overflow-x-auto">
+        {data.length > 0 && (
+          <div className="flex items-center justify-center flex-col">
+            <input
+              type="text"
+              className="mb-4 p-2 border border-gray-300 rounded w-md text-black noprint"
+              placeholder="Enter table title..."
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+            />
+            <h2 className="text-2xl font-bold mb-4 text-black">{title}</h2>
+          </div>
+        )}
         {data.length > 0 && (
           <table className="w-full border border-gray-300 text-sm text-gray-800">
             <thead className="bg-gray-100">
