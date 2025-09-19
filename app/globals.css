@@ -191,3 +191,43 @@ body {
     border: 1px solid #555;
   }
 }
+@media print {
+  .noprint {
+    display: none;
+  }
+  .nobreak {
+    break-inside: avoid;
+  }
+  @page {
+    size: A4;
+  }
+  body {
+    margin: 0;
+  }
+  @media (orientation: portrait) {
+    body {
+      flex-direction: column;
+    }
+  }
+  /* width */
+  ::-webkit-scrollbar {
+    width: 0;
+  }
+
+  /* Track */
+  ::-webkit-scrollbar-track {
+    box-shadow: none;
+    border-radius: 0;
+  }
+
+  /* Handle */
+  ::-webkit-scrollbar-thumb {
+    background: none;
+    border-radius: 0;
+  }
+
+  /* Handle on hover */
+  ::-webkit-scrollbar-thumb:hover {
+    background: none;
+  }
+}

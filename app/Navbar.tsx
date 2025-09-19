@@ -16,10 +16,11 @@ export default function Navbar() {
     { href: "/ocr", label: "OCR" },
     { href: "/milli", label: "Date" },
     { href: "/cuber", label: "Cube" },
+    { href: "/table", label: "Table" },
   ];
 
   return (
-    <nav className="sticky top-0 z-50 backdrop-blur-md bg-white/30 shadow-lg">
+    <nav className="sticky top-0 z-50 backdrop-blur-md bg-white/30 shadow-lg noprint">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16 items-center">
           {/* Brand */}
