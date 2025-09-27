@@ -64,7 +64,7 @@ const FileUploader: React.FC<FileUploaderProps> = ({ onFileSelect }) => {
         <input
           ref={fileInputRef}
           style={{ display: "none" }}
-          accept=".jsx,.tsx"
+          accept=".jsx,.tsx,.js,.ts"
           id="contained-button-file"
           multiple={false}
           type="file"
