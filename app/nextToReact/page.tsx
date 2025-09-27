@@ -318,22 +318,55 @@ const convertNextToReact = (code: string): ConversionResult => {
   }
 
   // Convert router hooks
-  // Handle useNavigate conversion and import
-  if (code.includes("useRouter") || code.includes("router.push")) {
-    warnings.push(
-      "useRouter has been converted to useNavigate from React Router"
-    );
+  // Handle useNavigate and useSearchParams conversion and import
+  if (
+    code.includes("useRouter") ||
+    code.includes("router.push") ||
+    code.includes("useSearchParams")
+  ) {
+    // Handle useRouter conversion
+    if (code.includes("useRouter") || code.includes("router.push")) {
+      warnings.push(
+        "useRouter has been converted to useNavigate from React Router"
+      );
+    }
+
+    // Handle useSearchParams conversion
+    if (code.includes("useSearchParams")) {
+      warnings.push(
+        "Next.js useSearchParams has been converted to React Router useSearchParams"
+      );
+      // Remove Next.js useSearchParams import
+      convertedCode = convertedCode.replace(
+        /import\s*{\s*useSearchParams\s*}\s*from\s*['"]next\/navigation['"];?\n?/,
+        ""
+      );
+    }
 
     // Add react-router-dom import if not present
+    const neededImports: string[] = [];
+    if (code.includes("useRouter") || code.includes("router.push"))
+      neededImports.push("useNavigate");
+    if (code.includes("useSearchParams")) neededImports.push("useSearchParams");
+
     if (!convertedCode.includes("react-router-dom")) {
-      convertedCode = `import { useNavigate } from 'react-router-dom';\n${convertedCode}`;
-    } else if (!convertedCode.includes("useNavigate")) {
-      // Add useNavigate to existing react-router-dom import
+      convertedCode = `import { ${neededImports.join(
+        ", "
+      )} } from 'react-router-dom';\n${convertedCode}`;
+    } else {
+      // Add needed imports to existing react-router-dom import
       convertedCode = convertedCode.replace(
         /import\s*{([^}]*)}\s*from\s*['"]react-router-dom['"];?/,
         (match, imports) => {
-          const newImports = imports.trim();
-          return `import { useNavigate, ${newImports} } from 'react-router-dom';`;
+          const currentImports = imports
+            .split(",")
+            .map((i: string) => i.trim());
+          const newImports = neededImports.filter(
+            (imp: string) => !currentImports.includes(imp)
+          );
+          return `import { ${[...currentImports, ...newImports].join(
+            ", "
+          )} } from 'react-router-dom';`;
         }
       );
     }
@@ -352,6 +385,18 @@ const convertNextToReact = (code: string): ConversionResult => {
 
     // Convert router.push calls
     convertedCode = convertedCode.replace(/router\.push/g, "navigate");
+
+    // Convert router.back() to navigate(-1)
+    convertedCode = convertedCode.replace(/router\.back\(\)/g, "navigate(-1)");
+
+    // Convert Next.js useSearchParams to React Router useSearchParams
+    if (code.includes("useSearchParams")) {
+      // Convert searchParams.get() usage to React Router style
+      convertedCode = convertedCode.replace(
+        /const\s+searchParams\s*=\s*useSearchParams\(\);?/g,
+        "const [searchParams] = useSearchParams();"
+      );
+    }
   }
 
   // Add React state for props if needed
