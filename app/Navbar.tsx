@@ -14,6 +14,7 @@ export default function Navbar() {
     { href: "/csvToJson", label: "CSV ⇄ JSON" },
     { href: "/pdf", label: "PDF" },
     { href: "/ocr", label: "OCR" },
+    { href: "/nextToReact", label: "Next to React" },
     { href: "/milli", label: "Date" },
     { href: "/cuber", label: "Cube" },
     { href: "/table", label: "Table" },
