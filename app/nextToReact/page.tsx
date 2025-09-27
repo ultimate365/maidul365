@@ -506,7 +506,7 @@ export default function NextToReactJS() {
         open={showCopySuccess}
         autoHideDuration={2000}
         onClose={() => setShowCopySuccess(false)}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
       >
         <Alert onClose={() => setShowCopySuccess(false)} severity="success">
           Code copied to clipboard!
@@ -518,8 +518,9 @@ export default function NextToReactJS() {
           open={showWarnings}
           autoHideDuration={6000}
           onClose={() => setShowWarnings(false)}
+          anchorOrigin={{ vertical: "top", horizontal: "center" }}
         >
-          <Alert onClose={() => setShowWarnings(false)} severity="warning">
+          <Alert onClose={() => setShowWarnings(false)} severity="success">
             {warnings.join(". ")}
           </Alert>
         </Snackbar>
