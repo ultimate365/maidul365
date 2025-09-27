@@ -235,6 +235,11 @@ const convertNextToReact = (code: string): ConversionResult => {
     ""
   );
 
+  // Clean up lines containing only semicolons
+  convertedCode = convertedCode.replace(/^\s*;\s*$/gm, "");
+  // Remove any empty lines at the start of the file
+  convertedCode = convertedCode.replace(/^[\r\n]+/, "");
+
   // Convert getStaticProps to useEffect
   if (code.includes("export async function getStaticProps")) {
     warnings.push("getStaticProps has been converted to useEffect with fetch");
