@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import * as pdfjsLib from "pdfjs-dist";
+import Tesseract from "tesseract.js";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@5.4.54/build/pdf.worker.min.mjs`;
 
@@ -77,6 +78,23 @@ function bytesToSize(bytes) {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
 }
 
+const LANG_OPTIONS = [
+  { label: "English (eng)", value: "eng" },
+  { label: "Hindi (hin)", value: "hin" },
+  { label: "Bengali (ben)", value: "ben" },
+  { label: "Arabic (ara)", value: "ara" },
+  { label: "Chinese Simplified (chi_sim)", value: "chi_sim" },
+  { label: "French (fra)", value: "fra" },
+  { label: "German (deu)", value: "deu" },
+];
+
+const PSM_OPTIONS = [
+  { label: "Auto (blocks) — psm 3", value: "3" },
+  { label: "Single uniform block — psm 6", value: "6" },
+  { label: "Single text line — psm 7", value: "7" },
+  { label: "Sparse text — psm 11", value: "11" },
+];
+
 const PdfComponent = () => {
   const fileRef = useRef();
   const [showSingleInput, setShowSingleInput] = useState(true);
@@ -91,6 +109,14 @@ const PdfComponent = () => {
   const [scale, setScale] = useState(1.0); // 0.5 – 2.0 (render DPI scale for compression)
   const [status, setStatus] = useState("");
   const [origSize, setOrigSize] = useState(0);
+  // OCR states
+  const [ocrLang, setOcrLang] = useState("eng");
+  const [ocrPsm, setOcrPsm] = useState("3");
+  const [ocrText, setOcrText] = useState("");
+  const [isRunningOcr, setIsRunningOcr] = useState(false);
+  const [ocrProgress, setOcrProgress] = useState(0);
+  const [ocrStatus, setOcrStatus] = useState("");
+  const [ocrError, setOcrError] = useState("");
 
   // Load the PDF & thumbnails
   useEffect(() => {
@@ -251,6 +277,97 @@ const PdfComponent = () => {
     const blob = new Blob([bytes], { type: "application/pdf" });
     setStatus(`Done. Output size ~ ${bytesToSize(bytes.byteLength)}`);
     return blob;
+  };
+
+  // OCR helpers
+  const renderPageToDataUrl = async (pageIndex) => {
+    if (!pdf) return null;
+    const page = await pdf.getPage(pageIndex + 1);
+    const viewport = page.getViewport({ scale: scale * 2.0 });
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    canvas.width = Math.floor(viewport.width);
+    canvas.height = Math.floor(viewport.height);
+    await page.render({ canvasContext: ctx, viewport }).promise;
+    return canvas.toDataURL("image/png");
+  };
+
+  const runOcrOnPages = async (pageIndices = null) => {
+    if (!pdf) return;
+    setOcrError("");
+    setOcrText("");
+    setIsRunningOcr(true);
+    setOcrProgress(0);
+    setOcrStatus("Initializing OCR...");
+
+    try {
+      const indices = (pageIndices || order).filter(
+        (i) => pages[i] !== undefined
+      );
+      const results = [];
+      let completed = 0;
+      for (const i of indices) {
+        setOcrStatus(`Rendering page ${i + 1}...`);
+        const dataUrl = await renderPageToDataUrl(i);
+        if (!dataUrl) continue;
+
+        setOcrStatus(`Running OCR on page ${i + 1}...`);
+        const res = await Tesseract.recognize(dataUrl, ocrLang, {
+          tessedit_pageseg_mode: ocrPsm,
+          logger: (m) => {
+            if (m.status)
+              setOcrStatus(
+                m.status +
+                  (m.progress ? ` (${Math.round(m.progress * 100)}%)` : "")
+              );
+            if (typeof m.progress === "number") {
+              // weigh page progress into overall
+              const pageProgress = m.progress;
+              const overall = Math.round(
+                ((completed + pageProgress) / indices.length) * 100
+              );
+              setOcrProgress(overall);
+            }
+          },
+        });
+
+        const text = res?.data?.text || "";
+        results.push({ page: i + 1, text });
+        completed += 1;
+        setOcrProgress(Math.round((completed / indices.length) * 100));
+      }
+
+      const joined = results
+        .map((r) => `--- Page ${r.page} ---\n${r.text}`)
+        .join("\n\n");
+      setOcrText(joined);
+      setOcrStatus("Done");
+      setOcrProgress(100);
+    } catch (err) {
+      console.error(err);
+      setOcrError(err?.message || "OCR failed");
+      setOcrStatus("Failed");
+    } finally {
+      setIsRunningOcr(false);
+    }
+  };
+
+  const copyOcrText = async () => {
+    try {
+      await navigator.clipboard.writeText(ocrText || "");
+    } catch {}
+  };
+
+  const downloadOcrText = () => {
+    const blob = new Blob([ocrText || ""], {
+      type: "text/plain;charset=utf-8",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `ocr-pdf-${Date.now()}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const download = async (blob, name = `output-${time}.pdf`) => {
@@ -552,6 +669,76 @@ const PdfComponent = () => {
                         </div>
                       )}
                     </div>
+                    {/* OCR Panel */}
+                    <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 p-4 shadow-sm space-y-2">
+                      <h2 className="font-semibold">PDF OCR</h2>
+                      <label className="block text-sm">Language</label>
+                      <select
+                        value={ocrLang}
+                        onChange={(e) => setOcrLang(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-sm"
+                      >
+                        {LANG_OPTIONS.map((o) => (
+                          <option key={o.value} value={o.value}>
+                            {o.label}
+                          </option>
+                        ))}
+                      </select>
+
+                      <label className="block text-sm mt-2">
+                        Page Segmentation Mode
+                      </label>
+                      <select
+                        value={ocrPsm}
+                        onChange={(e) => setOcrPsm(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-sm"
+                      >
+                        {PSM_OPTIONS.map((o) => (
+                          <option key={o.value} value={o.value}>
+                            {o.label}
+                          </option>
+                        ))}
+                      </select>
+
+                      <div className="flex gap-2 mt-3">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            runOcrOnPages(
+                              Array.from(selected).length
+                                ? order.filter((i) => selected.has(i))
+                                : null
+                            )
+                          }
+                          disabled={!pdf || isRunningOcr || pages.length === 0}
+                          className="px-3 py-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-60"
+                        >
+                          {isRunningOcr
+                            ? `Running OCR (${ocrProgress}%)…`
+                            : "Run OCR (selected / all)"}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setOcrText("");
+                            setOcrError("");
+                          }}
+                          className="px-3 py-2 rounded-xl bg-gray-200 dark:bg-gray-800"
+                        >
+                          Clear OCR
+                        </button>
+                      </div>
+
+                      {ocrStatus && (
+                        <div className="text-xs text-gray-500 pt-2">
+                          {ocrStatus} — {ocrProgress}%
+                        </div>
+                      )}
+                      {ocrError && (
+                        <div className="text-xs text-rose-500">{ocrError}</div>
+                      )}
+                    </div>
                   </>
                 )}
               </>
@@ -684,6 +871,42 @@ const PdfComponent = () => {
                     </button>
                   </div>
                 )}
+              </div>
+            )}
+            {/* OCR Results */}
+            {ocrText.trim() && (
+              <div className="col-span-full mt-6 p-4 rounded-2xl border bg-white dark:bg-gray-800">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1">
+                    <h3 className="font-semibold">OCR Results</h3>
+                    <pre className="whitespace-pre-wrap text-sm mt-2 text-gray-800 dark:text-gray-100 max-h-64 overflow-auto p-2 bg-gray-50 dark:bg-gray-900 rounded">
+                      {ocrText}
+                    </pre>
+                  </div>
+                  <div className="w-40 flex flex-col gap-2">
+                    <button
+                      onClick={copyOcrText}
+                      className="px-3 py-2 rounded-xl bg-gray-200 dark:bg-gray-700"
+                    >
+                      Copy
+                    </button>
+                    <button
+                      onClick={downloadOcrText}
+                      className="px-3 py-2 rounded-xl bg-indigo-600 text-white"
+                    >
+                      Download text
+                    </button>
+                    <button
+                      onClick={() => {
+                        setOcrText("");
+                        setOcrError("");
+                      }}
+                      className="px-3 py-2 rounded-xl bg-rose-600 text-white"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
           </section>
