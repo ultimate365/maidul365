@@ -302,8 +302,29 @@ const convertNextToReact = (code: string): ConversionResult => {
       "Next.js Image component has been converted to standard img tag"
     );
     convertedCode = convertedCode.replace(
-      /<Image\s+src=([^>]+)([^/]*)\/>/g,
-      '<img src=$1 alt="" $2/>'
+      /<Image\s+(?:src|alt|height|width|sizes|quality|loading|priority|placeholder|blurDataURL)=['"][^'"]*['"](?:\s+(?:src|alt|height|width|sizes|quality|loading|priority|placeholder|blurDataURL)=['"][^'"]*['"])*\s*\/?>/g,
+      (match) => {
+        const src = match.match(/src=['"]([^'"]*)['"]/)?.[1] || "";
+        const alt = match.match(/alt=['"]([^'"]*)['"]/)?.[1] || "";
+        const height = match.match(/height=['"]([^'"]*)['"]/)?.[1];
+        const width = match.match(/width=['"]([^'"]*)['"]/)?.[1];
+
+        let style = "";
+        if (height || width) {
+          const dimensions = [];
+          if (height) dimensions.push(`height: ${height}px`);
+          if (width) dimensions.push(`width: ${width}px`);
+          style = ` style={{${dimensions.join(", ")}}}`;
+        }
+
+        return `<img src="${src}" alt="${alt || ""}"${style} />`;
+      }
+    );
+
+    // Remove next/image import
+    convertedCode = convertedCode.replace(
+      /import\s+(?:{\s*)?Image(?:\s*})?\s+from\s+['"]next\/image['"];\n?/g,
+      ""
     );
   }
 
