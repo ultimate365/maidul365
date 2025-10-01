@@ -20,7 +20,7 @@ const PageThumb = ({
 }) => {
   return (
     <div
-      className="group relative flex flex-col items-center rounded-2xl p-3 border border-gray-200 dark:border-gray-700 shadow-sm bg-white/70 dark:bg-gray-900/60 backdrop-blur cursor-grab active:cursor-grabbing"
+      className="group relative flex flex-col items-center rounded-2xl p-3 border border-gray-200 dark:border-gray-700 shadow-sm bg-white/70 dark:bg-gray-900/60 backdrop-blur cursor-grab active:cursor-grabbing transition-colors"
       draggable
       onDragStart={(e) => onDragStart(e, i)}
       onDragOver={(e) => onDragOver(e, i)}
@@ -38,13 +38,13 @@ const PageThumb = ({
       <button
         type="button"
         onClick={() => onRotate(i)}
-        className="absolute right-2 top-2 z-10 rounded-full px-3 py-1 text-xs bg-gray-900/80 text-white opacity-0 group-hover:opacity-100 transition"
+        className="absolute right-2 top-2 z-10 rounded-full px-3 py-1 text-xs bg-gray-900/80 dark:bg-gray-700/90 text-white opacity-0 group-hover:opacity-100 transition"
         title="Rotate 90°"
       >
         ⟳ 90°
       </button>
       <div
-        className="relative w-full overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800"
+        className="relative w-full overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 transition-colors"
         style={{ aspectRatio: "3/4" }}
       >
         {page.thumbUrl ? (
@@ -55,7 +55,7 @@ const PageThumb = ({
             style={{ transform: `rotate(${rotation}deg)` }}
           />
         ) : (
-          <div className="absolute inset-0 grid place-items-center text-sm text-gray-500">
+          <div className="absolute inset-0 grid place-items-center text-sm text-gray-500 dark:text-gray-400">
             Rendering…
           </div>
         )}
@@ -63,7 +63,7 @@ const PageThumb = ({
       <div className="mt-2 text-xs text-gray-600 dark:text-gray-300">
         Page {i + 1}
       </div>
-      <div className="absolute -left-2 top-1/2 -translate-y-1/2 text-gray-400">
+      <div className="absolute -left-2 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500">
         ⋮⋮
       </div>
     </div>
@@ -533,39 +533,39 @@ const PdfComponent = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-gray-950 dark:to-gray-900 text-gray-900 dark:text-gray-100">
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-gray-950 dark:to-gray-900 text-gray-900 dark:text-gray-100 transition-colors">
       <div className="mx-auto max-w-7xl px-4 py-8">
-        <header className="mb-6 flex items-center justify-between">
+        <div className="mb-6 flex flex-col sm:flex-row sm:items-center gap-4 sm:justify-between">
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
-            PDF Compressor & Editor by Maidul365 🚀
+            PDF Compressor & Editor
           </h1>
           <div>
             <button
               type="button"
               onClick={() => setShowSingleInput(!showSingleInput)}
-              className="px-4 py-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700"
+              className="w-full sm:w-auto px-4 py-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700"
             >
               {showSingleInput ? "Merge PDF" : "Edit A PDF"}
             </button>
           </div>
-        </header>
+        </div>
 
         <div className="grid gap-4 md:grid-cols-3">
           {/* Left controls */}
           <section className="md:col-span-1 space-y-4">
             {showSingleInput ? (
               <>
-                <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 p-4 shadow-sm">
-                  <h2 className="font-semibold mb-2">1) Load a PDF</h2>
+                <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 p-4 shadow-sm transition-colors">
+                  <h2 className="font-semibold mb-2 dark:text-gray-100">1) Load a PDF</h2>
                   <input
                     type="file"
                     ref={fileRef}
                     accept="application/pdf"
                     onChange={(e) => setFile(e.target.files?.[0] || null)}
-                    className="cursor-pointer block w-full text-sm file:mr-4 file:rounded-xl file:border file:border-gray-200 file:bg-gray-100 file:px-4 file:py-2 file:text-sm hover:file:bg-blue-700 dark:file:bg-gray-800 dark:file:border-gray-700"
+                    className="cursor-pointer block w-full text-sm file:mr-4 file:rounded-xl file:border file:border-gray-200 file:bg-gray-100 file:px-4 file:py-2 file:text-sm hover:file:bg-blue-700 dark:text-gray-300 dark:file:bg-gray-800 dark:file:border-gray-700 dark:file:text-gray-300"
                   />
                   {origSize > 0 && (
-                    <div className="mt-2 text-xs text-gray-500">
+                    <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
                       Original size: {bytesToSize(origSize)}
                     </div>
                   )}
@@ -573,9 +573,9 @@ const PdfComponent = () => {
 
                 {pdf && pages.length > 0 && (
                   <>
-                    <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 p-4 shadow-sm">
-                      <h2 className="font-semibold mb-3">2) Compression</h2>
-                      <label className="block text-sm mb-1">
+                    <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 p-4 shadow-sm transition-colors">
+                      <h2 className="font-semibold mb-3 dark:text-gray-100">2) Compression</h2>
+                      <label className="block text-sm mb-1 dark:text-gray-300">
                         JPEG Quality: {quality.toFixed(2)}
                       </label>
                       <input
@@ -585,9 +585,9 @@ const PdfComponent = () => {
                         step={0.05}
                         value={quality}
                         onChange={(e) => setQuality(parseFloat(e.target.value))}
-                        className="w-full cursor-grabbing"
+                        className="w-full cursor-grabbing dark:accent-indigo-500"
                       />
-                      <label className="block text-sm mt-3 mb-1">
+                      <label className="block text-sm mt-3 mb-1 dark:text-gray-300">
                         Render Scale (DPI): {scale.toFixed(2)}×
                       </label>
                       <input
@@ -597,9 +597,9 @@ const PdfComponent = () => {
                         step={0.1}
                         value={scale}
                         onChange={(e) => setScale(parseFloat(e.target.value))}
-                        className="w-full cursor-grabbing"
+                        className="w-full cursor-grabbing dark:accent-indigo-500"
                       />
-                      <p className="mt-2 text-xs text-gray-500">
+                      <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
                         Lower quality/scale ⇒ smaller file, but lower clarity.
                       </p>
                     </div>

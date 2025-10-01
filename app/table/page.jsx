@@ -97,7 +97,7 @@ export default function Autoresult() {
     <div
       className={`container-fluid ${
         !data.length && "h-screen"
-      } p-6 mx-auto bg-white`}
+      } p-6 mx-auto bg-white dark:bg-gray-900 dark:text-gray-100 transition-colors`}
     >
       {/* File Upload */}
       {/* File Upload */}
@@ -108,8 +108,8 @@ export default function Autoresult() {
         className={`noprint flex items-center justify-center w-full max-w-md mx-auto mb-6 p-6 border-2 rounded-lg cursor-pointer transition 
           ${
             dragActive
-              ? "border-blue-500 bg-blue-50"
-              : "border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100"
+              ? "border-blue-500 bg-blue-50 dark:bg-blue-900/30 dark:border-blue-400"
+              : "border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700"
           }`}
       >
         <label
@@ -117,7 +117,7 @@ export default function Autoresult() {
           className="flex flex-col items-center justify-center w-full cursor-pointer"
         >
           <svg
-            className="w-10 h-10 mb-3 text-gray-400"
+            className="w-10 h-10 mb-3 text-gray-400 dark:text-gray-300"
             fill="none"
             stroke="currentColor"
             strokeWidth="2"
@@ -129,11 +129,11 @@ export default function Autoresult() {
               d="M7 16a4 4 0 01-.88-7.903A5.5 5.5 0 1115.9 6h.6a5.5 5.5 0 011.1 10.897M15 13l-3-3m0 0l-3 3m3-3v12"
             ></path>
           </svg>
-          <p className="mb-2 text-sm text-gray-500">
+          <p className="mb-2 text-sm text-gray-500 dark:text-gray-300">
             <span className="font-semibold">Click to upload</span> or drag &
             drop
           </p>
-          <p className="text-xs text-gray-400">CSV, JSON, or XLSX (max 5MB)</p>
+          <p className="text-xs text-gray-400 dark:text-gray-400">CSV, JSON, or XLSX (max 5MB)</p>
           <input
             id="fileInput"
             type="file"
@@ -179,7 +179,7 @@ export default function Autoresult() {
       {/* Column filter checkboxes */}
       {columsArray.length > 0 && (
         <div className="mb-6 noprint">
-          <h5 className="text-lg font-semibold mb-2 text-black">
+          <h5 className="text-lg font-semibold mb-2 text-black dark:text-white">
             Choose Columns:
           </h5>
           <div className="flex flex-wrap gap-4">
@@ -187,11 +187,11 @@ export default function Autoresult() {
               <label key={col} className="flex items-center gap-2">
                 <input
                   type="checkbox"
-                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700"
                   checked={selectedCols.includes(col)}
                   onChange={() => toggleColumn(col)}
                 />
-                <span className="text-gray-700">{col}</span>
+                <span className="text-gray-700 dark:text-gray-300">{col}</span>
               </label>
             ))}
           </div>
@@ -204,21 +204,21 @@ export default function Autoresult() {
           <div className="flex items-center justify-center flex-col">
             <input
               type="text"
-              className="mb-4 p-2 border border-gray-300 rounded w-md text-black noprint"
+              className="mb-4 p-2 border border-gray-300 rounded w-md text-black dark:text-white dark:bg-gray-800 dark:border-gray-600 noprint"
               placeholder="Enter table title..."
               value={title}
               onChange={(e) => setTitle(e.target.value)}
             />
-            <h2 className="text-2xl font-bold mb-4 text-black">{title}</h2>
+            <h2 className="text-2xl font-bold mb-4 text-black dark:text-white">{title}</h2>
           </div>
         )}
         {data.length > 0 && (
-          <table className="w-full border border-gray-300 text-sm text-gray-800">
-            <thead className="bg-gray-100">
+          <table className="w-full border border-gray-300 dark:border-gray-700 text-sm text-gray-800 dark:text-gray-200">
+            <thead className="bg-gray-100 dark:bg-gray-800">
               <tr>
-                <th className="border border-gray-300 px-3 py-2">Sl</th>
+                <th className="border border-gray-300 dark:border-gray-700 px-3 py-2">Sl</th>
                 {selectedCols.map((col) => (
-                  <th key={col} className="border border-gray-300 px-3 py-2">
+                  <th key={col} className="border border-gray-300 dark:border-gray-700 px-3 py-2">
                     {col}
                   </th>
                 ))}
@@ -226,12 +226,12 @@ export default function Autoresult() {
             </thead>
             <tbody>
               {values.map((row, index) => (
-                <tr key={index} className="hover:bg-gray-50">
-                  <td className="border border-gray-300 px-3 py-2">
+                <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                  <td className="border border-gray-300 dark:border-gray-700 px-3 py-2">
                     {index + 1}
                   </td>
                   {selectedCols.map((col, i) => (
-                    <td key={i} className="border border-gray-300 px-3 py-2">
+                    <td key={i} className="border border-gray-300 dark:border-gray-700 px-3 py-2">
                       {row[col]}
                     </td>
                   ))}

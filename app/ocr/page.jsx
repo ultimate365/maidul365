@@ -7,6 +7,10 @@ import React, {
   useState,
 } from "react";
 import Tesseract from "tesseract.js";
+import dynamic from 'next/dynamic';
+
+// We'll initialize PDF.js only on the client side
+let pdfjsLib = null;
 
 function classNames(...xs) {
   return xs.filter(Boolean).join(" ");
@@ -41,15 +45,54 @@ export default function OCR() {
   const [status, setStatus] = useState("Idle");
   const [error, setError] = useState("");
   const [autoRotate, setAutoRotate] = useState(true);
+  const [isPdf, setIsPdf] = useState(false);
+  const [pdfPageCount, setPdfPageCount] = useState(0);
+  const [currentPdfPage, setCurrentPdfPage] = useState(1);
+  const [pdfPreviewUrl, setPdfPreviewUrl] = useState("");
+  const [pdfJsLoaded, setPdfJsLoaded] = useState(false);
 
   const inputRef = useRef(null);
   const dropRef = useRef(null);
+  
+  // Initialize PDF.js on the client side only
+  useEffect(() => {
+    const loadPdfJs = async () => {
+      if (typeof window === 'undefined') return;
+      
+      try {
+        pdfjsLib = await import('pdfjs-dist');
+        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@5.4.54/build/pdf.worker.min.mjs`;
+        setPdfJsLoaded(true);
+      } catch (error) {
+        console.error('Error loading PDF.js:', error);
+        setError('Failed to load PDF library. Please try again later.');
+      }
+    };
+    
+    loadPdfJs();
+  }, []);
 
   const activeFile = files[activeIndex] || null;
   const activeSrc = useMemo(() => {
     if (!activeFile) return "";
     return URL.createObjectURL(activeFile);
   }, [activeFile]);
+  
+  // Update PDF preview when page changes
+  useEffect(() => {
+    if (isPdf && activeFile && pdfjsLib && pdfJsLoaded) {
+      (async () => {
+        try {
+          const pdf = await pdfjsLib.getDocument(await activeFile.arrayBuffer()).promise;
+          const dataUrl = await renderPdfPageToImage(pdf, currentPdfPage);
+          setPdfPreviewUrl(dataUrl);
+        } catch (err) {
+          console.error("Error rendering PDF preview:", err);
+          setError("Failed to render PDF preview");
+        }
+      })();
+    }
+  }, [isPdf, activeFile, currentPdfPage, pdfjsLib, pdfJsLoaded]);
 
   useEffect(() => {
     return () => {
@@ -57,26 +100,77 @@ export default function OCR() {
     };
   }, [activeSrc]);
 
-  const onPickFiles = (e) => {
-    const list = Array.from(e.target.files || []);
-    if (!list.length) return;
-    setFiles((prev) => [...prev, ...list]);
-    if (activeIndex === -1 && list.length) setActiveIndex(0);
+  const handlePdfFile = async (file) => {
+    if (!pdfjsLib || !pdfJsLoaded) {
+      setError("PDF library is still loading. Please try again in a moment.");
+      return null;
+    }
+    
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      setPdfPageCount(pdf.numPages);
+      setIsPdf(true);
+      setCurrentPdfPage(1);
+      
+      // Generate preview for the first page
+      const dataUrl = await renderPdfPageToImage(pdf, 1);
+      setPdfPreviewUrl(dataUrl);
+      
+      return pdf;
+    } catch (err) {
+      console.error("Error loading PDF:", err);
+      setError("Failed to load PDF file. Make sure it's a valid PDF.");
+      return null;
+    }
   };
 
-  const onDrop = useCallback(
-    (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const dropped = Array.from(e.dataTransfer.files || []);
-      const imgs = dropped.filter((f) => f.type.startsWith("image/"));
-      if (imgs.length) {
-        setFiles((prev) => [...prev, ...imgs]);
-        if (!files.length) setActiveIndex(0);
+  const onPickFiles = async (e) => {
+    const list = Array.from(e.target.files || []);
+    if (!list.length) return;
+
+    setError("");
+    setIsPdf(false);
+    setPdfPageCount(0);
+
+    // Handle first file (for now we process one file at a time)
+    const file = list[0];
+    if (file.type === "application/pdf") {
+      const pdf = await handlePdfFile(file);
+      if (pdf) {
+        setFiles([file]);
+        setActiveIndex(0);
       }
-    },
-    [files.length]
-  );
+    } else if (file.type.startsWith("image/")) {
+      setFiles([file]);
+      setActiveIndex(0);
+    }
+  };
+
+  const onDrop = useCallback(async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const dropped = Array.from(e.dataTransfer.files || []);
+
+    // Handle first dropped file
+    if (dropped.length > 0) {
+      const file = dropped[0];
+      setError("");
+      setIsPdf(false);
+      setPdfPageCount(0);
+
+      if (file.type === "application/pdf") {
+        const pdf = await handlePdfFile(file);
+        if (pdf) {
+          setFiles([file]);
+          setActiveIndex(0);
+        }
+      } else if (file.type.startsWith("image/")) {
+        setFiles([file]);
+        setActiveIndex(0);
+      }
+    }
+  }, []);
 
   const onPaste = useCallback(async (e) => {
     const items = e.clipboardData?.items;
@@ -125,6 +219,28 @@ export default function OCR() {
     }
   };
 
+  const renderPdfPageToImage = async (pdf, pageNumber) => {
+    try {
+      const page = await pdf.getPage(pageNumber);
+      const viewport = page.getViewport({ scale: 2.0 }); // Higher scale for better OCR
+
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+
+      await page.render({
+        canvasContext: ctx,
+        viewport: viewport,
+      }).promise;
+
+      return canvas.toDataURL("image/png");
+    } catch (err) {
+      console.error("Error rendering PDF page:", err);
+      throw new Error("Failed to render PDF page");
+    }
+  };
+
   const runOCR = async () => {
     if (!activeFile) return;
     setIsRunning(true);
@@ -134,9 +250,25 @@ export default function OCR() {
     setOcrText("");
 
     try {
-      const image = activeSrc;
+      let imageToProcess;
 
-      const result = await Tesseract.recognize(image, lang, {
+      if (isPdf) {
+        if (!pdfjsLib || !pdfJsLoaded) {
+          setError("PDF library is still loading. Please try again in a moment.");
+          setIsRunning(false);
+          return;
+        }
+        setStatus("Loading PDF...");
+        const pdf = await pdfjsLib.getDocument(await activeFile.arrayBuffer())
+          .promise;
+        setStatus(`Rendering page ${currentPdfPage}...`);
+        imageToProcess = await renderPdfPageToImage(pdf, currentPdfPage);
+      } else {
+        imageToProcess = activeSrc;
+      }
+
+      setStatus("Running OCR...");
+      const result = await Tesseract.recognize(imageToProcess, lang, {
         tessedit_pageseg_mode: psm,
         imageColor: true,
         logger: (m) => {
@@ -193,11 +325,9 @@ export default function OCR() {
 
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100">
-      <header className="sticky top-0 z-10 bg-gray-800/80 backdrop-blur border-b border-gray-700">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-          <h1 className="text-2xl font-bold tracking-tight">
-            Image OCR — by Maidul365
-          </h1>
+      <div className="max-w-6xl mx-auto p-4 grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="lg:col-span-3 flex items-center justify-between mb-4">
+          <h1 className="text-2xl font-bold tracking-tight">Image & PDF OCR</h1>
           {(files.length > 0 || imageURL.trim() || ocrText.trim()) && (
             <div className="flex gap-2">
               <button
@@ -210,9 +340,6 @@ export default function OCR() {
             </div>
           )}
         </div>
-      </header>
-
-      <main className="max-w-6xl mx-auto p-4 grid grid-cols-1 lg:grid-cols-3 gap-4">
         <section className="lg:col-span-1 space-y-4">
           <div className="p-4 bg-gray-800 rounded-2xl shadow">
             <h2 className="font-semibold mb-3">1) Add images</h2>
@@ -220,14 +347,15 @@ export default function OCR() {
               ref={dropRef}
               className="border-2 border-dashed border-gray-600 rounded-2xl p-6 text-center bg-gray-900"
             >
-              <p className="mb-2 font-medium">Drag & drop images here</p>
+              <p className="mb-2 font-medium">
+                Drag & drop images or PDF files here
+              </p>
               <p className="text-sm text-gray-400 mb-3">or</p>
               <div className="flex items-center justify-center gap-2">
                 <input
                   ref={inputRef}
                   type="file"
-                  accept="image/*"
-                  multiple
+                  accept="image/*,.pdf,application/pdf"
                   onChange={onPickFiles}
                   className="hidden"
                 />
@@ -235,11 +363,13 @@ export default function OCR() {
                   onClick={() => inputRef.current?.click()}
                   className="px-3 py-2 rounded-xl border border-gray-600 bg-gray-700 hover:bg-gray-600"
                 >
-                  Choose files
+                  Choose file
                 </button>
               </div>
               <p className="mt-3 text-xs text-gray-400">
-                Tip: You can also paste (Ctrl/Cmd+V) screenshots directly.
+                Supports images (PNG, JPG, etc.) and PDF files.
+                {!isPdf &&
+                  " You can also paste (Ctrl/Cmd+V) screenshots directly."}
               </p>
             </div>
 
@@ -366,19 +496,44 @@ export default function OCR() {
 
         <section className="lg:col-span-2 space-y-4">
           <div className="p-3 bg-gray-800 rounded-2xl shadow">
-            <h2 className="font-semibold px-1 pt-1">Preview</h2>
+            <div className="flex items-center justify-between px-1 pt-1">
+              <h2 className="font-semibold">Preview</h2>
+              {isPdf && pdfPageCount > 0 && (
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setCurrentPdfPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPdfPage <= 1}
+                    className="px-3 py-1.5 rounded-xl border border-gray-600 hover:bg-gray-700 disabled:opacity-50"
+                  >
+                    Previous
+                  </button>
+                  <span className="text-sm">
+                    Page {currentPdfPage} of {pdfPageCount}
+                  </span>
+                  <button
+                    onClick={() =>
+                      setCurrentPdfPage((p) => Math.min(pdfPageCount, p + 1))
+                    }
+                    disabled={currentPdfPage >= pdfPageCount}
+                    className="px-3 py-1.5 rounded-xl border border-gray-600 hover:bg-gray-700 disabled:opacity-50"
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
+            </div>
             <div className="mt-2 border border-gray-600 rounded-xl overflow-hidden bg-gray-900">
               {activeSrc ? (
                 <div className="max-h-[60vh] grid place-items-center overflow-auto">
                   <img
-                    src={activeSrc}
-                    alt="preview"
+                    src={isPdf ? pdfPreviewUrl : activeSrc}
+                    alt={isPdf ? `PDF Page ${currentPdfPage}` : "preview"}
                     className="object-contain max-h-[60vh]"
                   />
                 </div>
               ) : (
                 <div className="p-10 text-center text-gray-500">
-                  No image selected.
+                  No file selected.
                 </div>
               )}
             </div>
@@ -420,11 +575,12 @@ export default function OCR() {
             </p>
           </div>
         </section>
-      </main>
-
-      <footer className="py-8 text-center text-xs text-gray-500">
-        <p>Built with React & Tesseract.js — runs entirely in your browser.</p>
-      </footer>
+        <footer className="py-8 text-center text-xs text-gray-500">
+          <p>
+            Built with React & Tesseract.js — runs entirely in your browser.
+          </p>
+        </footer>
+      </div>
     </div>
   );
 }

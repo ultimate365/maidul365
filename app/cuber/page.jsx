@@ -8,7 +8,7 @@ import Solver from "./components/solver/";
 import toast, { Toaster } from "react-hot-toast";
 import "./App.css";
 
-function CubeSolver() {
+export default function CubeSolver() {
   // Define default color array for each cube face in a solved state
   let frontColor = [
     "green",
@@ -222,31 +222,31 @@ function CubeSolver() {
   // console.log(algoResult.forwardAlgo);
 
   return (
-    <div className="App">
-      <div className="app__container">
-        {/* Conditional rendering of pages according to "pageVisibility" array */}
-        {pageVisibility[0] && <Start handleClick={handleStart} />}
-        {pageVisibility[1] && <Position handleClick={handlePosition} />}
-        {pageVisibility[2] && (
-          <FaceSet
-            handleClick={handleFaceInput}
-            handleChange={handleFaceSet}
-            colors={inputFaceColors}
-            setAlgo={(algo) => handleAlgoResult(algo)}
-            cubeColorState={inputFaceColors}
-          />
-        )}
-        {pageVisibility[3] && (
-          <Solver
-            handleClick={handleSolver}
-            movesAlgo={algoResult}
-            handleReplay={replayApp}
-          />
-        )}
-        <Toaster />
+    <div className="cube-solver">
+      <div className="App">
+        <div className="app__container">
+          {/* Conditional rendering of pages according to "pageVisibility" array */}
+          {pageVisibility[0] && <Start handleClick={handleStart} />}
+          {pageVisibility[1] && <Position handleClick={handlePosition} />}
+          {pageVisibility[2] && (
+            <FaceSet
+              handleClick={handleFaceInput}
+              handleChange={handleFaceSet}
+              colors={inputFaceColors}
+              setAlgo={(algo) => handleAlgoResult(algo)}
+              cubeColorState={inputFaceColors}
+            />
+          )}
+          {pageVisibility[3] && (
+            <Solver
+              handleClick={handleSolver}
+              movesAlgo={algoResult}
+              handleReplay={replayApp}
+            />
+          )}
+          <Toaster />
+        </div>
       </div>
     </div>
   );
 }
-
-export default CubeSolver;
