@@ -17,6 +17,7 @@ const PageThumb = ({
   onDragStart,
   onDragOver,
   onDrop,
+  onRunOcr,
 }) => {
   return (
     <div
@@ -60,8 +61,16 @@ const PageThumb = ({
           </div>
         )}
       </div>
-      <div className="mt-2 text-xs text-gray-600 dark:text-gray-300">
-        Page {i + 1}
+      <div className="mt-2 text-xs text-gray-600 dark:text-gray-300 flex items-center gap-2">
+        <div>Page {i + 1}</div>
+        <button
+          type="button"
+          onClick={() => onRunOcr && onRunOcr(i)}
+          className="ml-2 px-2 py-1 text-xs rounded bg-indigo-600 text-white hover:bg-indigo-700"
+          title={`Run OCR on page ${i + 1}`}
+        >
+          OCR
+        </button>
       </div>
       <div className="absolute -left-2 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500">
         ⋮⋮
@@ -352,6 +361,65 @@ const PdfComponent = () => {
     }
   };
 
+  // Normalize OCR text: collapse multiple blank lines, trim trailing/leading spaces
+  const normalizeText = (raw) => {
+    if (!raw) return "";
+    // Replace CR with LF, normalize multiple empty lines to a single empty line
+    let t = raw.replace(/\r\n?/g, "\n");
+    // Trim spaces at line ends
+    t = t
+      .split("\n")
+      .map((ln) => ln.replace(/[ \t]+$/u, ""))
+      .join("\n");
+    // Collapse 3+ newlines to 2 (i.e., keep single blank line separator)
+    t = t.replace(/\n{3,}/g, "\n\n");
+    // Trim leading/trailing whitespace
+    return t.trim();
+  };
+
+  const runOcrOnPage = async (pageIndex) => {
+    if (!pdf) return;
+    setOcrError("");
+    setIsRunningOcr(true);
+    setOcrProgress(0);
+    setOcrStatus(`Initializing OCR for page ${pageIndex + 1}...`);
+
+    try {
+      setOcrStatus(`Rendering page ${pageIndex + 1}...`);
+      const dataUrl = await renderPageToDataUrl(pageIndex);
+      if (!dataUrl) throw new Error("Failed to render page");
+
+      setOcrStatus(`Running OCR on page ${pageIndex + 1}...`);
+      const res = await Tesseract.recognize(dataUrl, ocrLang, {
+        tessedit_pageseg_mode: ocrPsm,
+        logger: (m) => {
+          if (m.status) setOcrStatus(m.status);
+          if (typeof m.progress === "number")
+            setOcrProgress(Math.round(m.progress * 100));
+        },
+      });
+
+      const raw = res?.data?.text || "";
+      const cleaned = normalizeText(raw);
+      // append with page header
+      const header = `--- Page ${pageIndex + 1} ---\n`;
+      setOcrText((prev) => {
+        const parts = prev
+          ? `${prev}\n\n${header}${cleaned}`
+          : `${header}${cleaned}`;
+        return parts;
+      });
+      setOcrStatus("Done");
+      setOcrProgress(100);
+    } catch (err) {
+      console.error(err);
+      setOcrError(err?.message || "OCR failed");
+      setOcrStatus("Failed");
+    } finally {
+      setIsRunningOcr(false);
+    }
+  };
+
   const copyOcrText = async () => {
     try {
       await navigator.clipboard.writeText(ocrText || "");
@@ -556,7 +624,9 @@ const PdfComponent = () => {
             {showSingleInput ? (
               <>
                 <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 p-4 shadow-sm transition-colors">
-                  <h2 className="font-semibold mb-2 dark:text-gray-100">1) Load a PDF</h2>
+                  <h2 className="font-semibold mb-2 dark:text-gray-100">
+                    1) Load a PDF
+                  </h2>
                   <input
                     type="file"
                     ref={fileRef}
@@ -569,12 +639,25 @@ const PdfComponent = () => {
                       Original size: {bytesToSize(origSize)}
                     </div>
                   )}
+                  {order.length > 0 && (
+                    <div className="col-span-full flex justify-center">
+                      <button
+                        type="button"
+                        onClick={clearFile}
+                        className="mt-4 px-4 py-2 rounded-xl bg-rose-600 text-white hover:bg-rose-800"
+                      >
+                        Clear
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {pdf && pages.length > 0 && (
                   <>
                     <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 p-4 shadow-sm transition-colors">
-                      <h2 className="font-semibold mb-3 dark:text-gray-100">2) Compression</h2>
+                      <h2 className="font-semibold mb-3 dark:text-gray-100">
+                        2) Compression
+                      </h2>
                       <label className="block text-sm mb-1 dark:text-gray-300">
                         JPEG Quality: {quality.toFixed(2)}
                       </label>
@@ -858,6 +941,7 @@ const PdfComponent = () => {
                     onDragStart={onDragStart}
                     onDragOver={onDragOver}
                     onDrop={onDrop}
+                    onRunOcr={runOcrOnPage}
                   />
                 ))}
                 {order.length > 0 && (

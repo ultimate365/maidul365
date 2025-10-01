@@ -7,7 +7,7 @@ import React, {
   useState,
 } from "react";
 import Tesseract from "tesseract.js";
-import dynamic from 'next/dynamic';
+import dynamic from "next/dynamic";
 
 // We'll initialize PDF.js only on the client side
 let pdfjsLib = null;
@@ -53,22 +53,22 @@ export default function OCR() {
 
   const inputRef = useRef(null);
   const dropRef = useRef(null);
-  
+
   // Initialize PDF.js on the client side only
   useEffect(() => {
     const loadPdfJs = async () => {
-      if (typeof window === 'undefined') return;
-      
+      if (typeof window === "undefined") return;
+
       try {
-        pdfjsLib = await import('pdfjs-dist');
+        pdfjsLib = await import("pdfjs-dist");
         pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@5.4.54/build/pdf.worker.min.mjs`;
         setPdfJsLoaded(true);
       } catch (error) {
-        console.error('Error loading PDF.js:', error);
-        setError('Failed to load PDF library. Please try again later.');
+        console.error("Error loading PDF.js:", error);
+        setError("Failed to load PDF library. Please try again later.");
       }
     };
-    
+
     loadPdfJs();
   }, []);
 
@@ -77,13 +77,14 @@ export default function OCR() {
     if (!activeFile) return "";
     return URL.createObjectURL(activeFile);
   }, [activeFile]);
-  
+
   // Update PDF preview when page changes
   useEffect(() => {
     if (isPdf && activeFile && pdfjsLib && pdfJsLoaded) {
       (async () => {
         try {
-          const pdf = await pdfjsLib.getDocument(await activeFile.arrayBuffer()).promise;
+          const pdf = await pdfjsLib.getDocument(await activeFile.arrayBuffer())
+            .promise;
           const dataUrl = await renderPdfPageToImage(pdf, currentPdfPage);
           setPdfPreviewUrl(dataUrl);
         } catch (err) {
@@ -105,18 +106,18 @@ export default function OCR() {
       setError("PDF library is still loading. Please try again in a moment.");
       return null;
     }
-    
+
     try {
       const arrayBuffer = await file.arrayBuffer();
       const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
       setPdfPageCount(pdf.numPages);
       setIsPdf(true);
       setCurrentPdfPage(1);
-      
+
       // Generate preview for the first page
       const dataUrl = await renderPdfPageToImage(pdf, 1);
       setPdfPreviewUrl(dataUrl);
-      
+
       return pdf;
     } catch (err) {
       console.error("Error loading PDF:", err);
@@ -254,7 +255,9 @@ export default function OCR() {
 
       if (isPdf) {
         if (!pdfjsLib || !pdfJsLoaded) {
-          setError("PDF library is still loading. Please try again in a moment.");
+          setError(
+            "PDF library is still loading. Please try again in a moment."
+          );
           setIsRunning(false);
           return;
         }
