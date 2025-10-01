@@ -301,25 +301,19 @@ const convertNextToReact = (code: string): ConversionResult => {
     warnings.push(
       "Next.js Image component has been converted to standard img tag"
     );
+
+    // First replace Image with img tag but preserve all attributes
     convertedCode = convertedCode.replace(
-      /<Image\s+(?:src|alt|height|width|sizes|quality|loading|priority|placeholder|blurDataURL)=['"][^'"]*['"](?:\s+(?:src|alt|height|width|sizes|quality|loading|priority|placeholder|blurDataURL)=['"][^'"]*['"])*\s*\/?>/g,
-      (match) => {
-        const src = match.match(/src=['"]([^'"]*)['"]/)?.[1] || "";
-        const alt = match.match(/alt=['"]([^'"]*)['"]/)?.[1] || "";
-        const height = match.match(/height=['"]([^'"]*)['"]/)?.[1];
-        const width = match.match(/width=['"]([^'"]*)['"]/)?.[1];
-
-        let style = "";
-        if (height || width) {
-          const dimensions = [];
-          if (height) dimensions.push(`height: ${height}px`);
-          if (width) dimensions.push(`width: ${width}px`);
-          style = ` style={{${dimensions.join(", ")}}}`;
-        }
-
-        return `<img src="${src}" alt="${alt || ""}"${style} />`;
+      /<Image(\s+[^>]+)>/g,
+      (match, attributes) => {
+        // Keep the img tag open if there's content
+        const hasClosingTag = match.includes("/>");
+        return `<img${attributes}${hasClosingTag ? " />" : ">"}`;
       }
     );
+
+    // Then clean up any closing Image tags
+    convertedCode = convertedCode.replace(/<\/Image>/g, "</img>");
 
     // Remove next/image import
     convertedCode = convertedCode.replace(
