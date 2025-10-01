@@ -33,12 +33,12 @@ export default function Navbar() {
           </Link>
 
           {/* Desktop Links */}
-          <div className="hidden md:flex space-x-8">
+          <div className="hidden md:flex space-x-8 pl-2">
             {links.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
-                className={`relative font-semibold transition
+                className={`relative text-center font-semibold transition
                   text-gray-200 hover:text-indigo-400
                   after:absolute after:-bottom-1 after:left-0 after:h-[3px] after:w-0
                   after:rounded-full after:bg-gradient-to-r after:from-pink-500 after:to-indigo-500

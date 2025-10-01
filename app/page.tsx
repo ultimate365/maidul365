@@ -42,86 +42,95 @@ export default function Home() {
       </section>
 
       {/* Tools Section */}
-      <section className="grid gap-6 md:grid-cols-3 w-full max-w-6xl">
-        {/* File Conversion Tools */}
-        <Link
-          href="/csvToJson"
-          className="group bg-gray-800 shadow-lg rounded-2xl p-6 flex flex-col items-center hover:shadow-2xl transition-transform transform hover:-translate-y-1 border border-gray-700"
-        >
-          <FileSpreadsheet className="w-12 h-12 text-green-500 mb-4 group-hover:scale-110 transition-transform" />
-          <h2 className="text-xl font-bold text-gray-300 mb-2">CSV ⇄ JSON</h2>
-          <p className="text-gray-400 text-center">
-            Convert between CSV and JSON formats with ease.
-          </p>
-        </Link>
-
+      <section className="grid gap-6 md:grid-cols-4 w-full max-w-7xl">
         <Link
           href="/pdf"
-          className="group bg-gray-800 shadow-lg rounded-2xl p-6 flex flex-col items-center hover:shadow-2xl transition-transform transform hover:-translate-y-1 border border-gray-700"
+          className="group bg-gray-800 shadow-lg rounded-2xl p-4 flex flex-col items-center justify-between hover:shadow-2xl transition-transform transform hover:-translate-y-1 border border-gray-700 h-[200px]"
         >
-          <FileText className="w-12 h-12 text-red-500 mb-4 group-hover:scale-110 transition-transform" />
-          <h2 className="text-xl font-bold text-gray-300 mb-2">PDF Tools</h2>
-          <p className="text-gray-400 text-center">
+          <FileText className="w-10 h-10 text-red-500 mb-3 group-hover:scale-110 transition-transform" />
+          <h2 className="text-lg font-bold text-gray-300 mb-2 text-center">
+            PDF Tools
+          </h2>
+          <p className="text-sm text-gray-400 text-center">
             View, edit, and manipulate PDF files directly in your browser.
           </p>
         </Link>
 
         <Link
           href="/ocr"
-          className="group bg-gray-800 shadow-lg rounded-2xl p-6 flex flex-col items-center hover:shadow-2xl transition-transform transform hover:-translate-y-1 border border-gray-700"
+          className="group bg-gray-800 shadow-lg rounded-2xl p-4 flex flex-col items-center justify-between hover:shadow-2xl transition-transform transform hover:-translate-y-1 border border-gray-700 h-[200px]"
         >
-          <ScanText className="w-12 h-12 text-blue-500 mb-4 group-hover:scale-110 transition-transform" />
-          <h2 className="text-xl font-bold text-gray-300 mb-2">OCR</h2>
-          <p className="text-gray-400 text-center">
+          <ScanText className="w-10 h-10 text-blue-500 mb-3 group-hover:scale-110 transition-transform" />
+          <h2 className="text-lg font-bold text-gray-300 mb-2 text-center">
+            OCR
+          </h2>
+          <p className="text-sm text-gray-400 text-center">
             Extract text from images using Optical Character Recognition.
           </p>
         </Link>
 
+        {/* File Conversion Tools */}
         <Link
-          href="/milli"
-          className="group bg-gray-800 shadow-lg rounded-2xl p-6 flex flex-col items-center hover:shadow-2xl transition-transform transform hover:-translate-y-1 border border-gray-700"
+          href="/csvToJson"
+          className="group bg-gray-800 shadow-lg rounded-2xl p-4 flex flex-col items-center justify-between hover:shadow-2xl transition-transform transform hover:-translate-y-1 border border-gray-700 h-[200px]"
         >
-          <Calendar className="w-12 h-12 text-purple-500 mb-4 group-hover:scale-110 transition-transform" />
-          <h2 className="text-xl font-bold text-gray-300 mb-2">Date Utilities</h2>
-          <p className="text-gray-400 text-center">
-            Convert and manipulate dates in various formats.
+          <FileSpreadsheet className="w-10 h-10 text-green-500 mb-3 group-hover:scale-110 transition-transform" />
+          <h2 className="text-lg font-bold text-gray-300 mb-2 text-center">
+            CSV ⇄ JSON
+          </h2>
+          <p className="text-sm text-gray-400 text-center">
+            Convert between CSV and JSON formats with ease.
           </p>
         </Link>
-
+        {/* Next to React Converter */}
+        <Link
+          href="/nextToReact"
+          className="group bg-gray-800 shadow-lg rounded-2xl p-4 flex flex-col items-center justify-between hover:shadow-2xl transition-transform transform hover:-translate-y-1 border border-gray-700 h-[200px]"
+        >
+          <ArrowRightLeft className="min-w-10 min-h-10 text-indigo-500 mb-3 group-hover:scale-110 transition-transform" />
+          <h2 className="text-lg font-bold text-gray-300 mb-2 text-center">
+            Next.js Converter
+          </h2>
+          <p className="text-sm text-gray-400 text-center">
+            Convert Next.js to React components with automatic code
+            transformation.
+          </p>
+        </Link>
         <Link
           href="/table"
-          className="group bg-gray-800 shadow-lg rounded-2xl p-6 flex flex-col items-center hover:shadow-2xl transition-transform transform hover:-translate-y-1 border border-gray-700"
+          className="group bg-gray-800 shadow-lg rounded-2xl p-4 flex flex-col items-center justify-between hover:shadow-2xl transition-transform transform hover:-translate-y-1 border border-gray-700 h-[200px]"
         >
-          <Table2 className="w-12 h-12 text-yellow-500 mb-4 group-hover:scale-110 transition-transform" />
-          <h2 className="text-xl font-bold text-gray-300 mb-2">Table Tools</h2>
-          <p className="text-gray-400 text-center">
+          <Table2 className="w-10 h-10 text-yellow-500 mb-3 group-hover:scale-110 transition-transform" />
+          <h2 className="text-lg font-bold text-gray-300 mb-2 text-center">
+            Table Tools
+          </h2>
+          <p className="text-sm text-gray-400 text-center">
             Create, edit, and export tables with advanced formatting options.
           </p>
         </Link>
 
         <Link
-          href="/cuber"
-          className="group bg-gray-800 shadow-lg rounded-2xl p-6 flex flex-col items-center hover:shadow-2xl transition-transform transform hover:-translate-y-1 border border-gray-700 md:col-start-2"
+          href="/milli"
+          className="group bg-gray-800 shadow-lg rounded-2xl p-4 flex flex-col items-center justify-between hover:shadow-2xl transition-transform transform hover:-translate-y-1 border border-gray-700 h-[200px]"
         >
-          <Boxes className="w-12 h-12 text-indigo-500 mb-4 group-hover:scale-110 transition-transform" />
-          <h2 className="text-xl font-bold text-gray-300 mb-2">Cube Visualizer</h2>
-          <p className="text-gray-400 text-center">
-            Interactive 3D cube visualization and manipulation tool.
+          <Calendar className="w-10 h-10 text-purple-500 mb-3 group-hover:scale-110 transition-transform" />
+          <h2 className="text-lg font-bold text-gray-300 mb-2 text-center">
+            Date Utilities
+          </h2>
+          <p className="text-sm text-gray-400 text-center">
+            Convert and manipulate dates in various formats.
           </p>
         </Link>
-
-        {/* Next to React Converter */}
         <Link
-          href="/nextToReact"
-          className="group bg-gray-800 shadow-lg rounded-2xl p-6 flex flex-col items-center hover:shadow-2xl transition-transform transform hover:-translate-y-1 border border-gray-700 md:col-start-2"
+          href="/cuber"
+          className="group bg-gray-800 shadow-lg rounded-2xl p-4 flex flex-col items-center justify-between hover:shadow-2xl transition-transform transform hover:-translate-y-1 border border-gray-700 h-[200px]"
         >
-          <ArrowRightLeft className="w-12 h-12 text-indigo-500 mb-4 group-hover:scale-110 transition-transform" />
-          <h2 className="text-xl font-bold text-gray-300 mb-2">
-            Next.js Converter
+          <Boxes className="w-10 h-10 text-indigo-500 mb-3 group-hover:scale-110 transition-transform" />
+          <h2 className="text-lg font-bold text-gray-300 mb-2 text-center">
+            Cube Solver
           </h2>
-          <p className="text-gray-400 text-center">
-            Convert Next.js components to React components with automatic code
-            transformation and optimization.
+          <p className="text-sm text-gray-400 text-center">
+            Interactive 3D cube visualization and solver tool.
           </p>
         </Link>
       </section>
