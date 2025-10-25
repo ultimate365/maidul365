@@ -96,6 +96,20 @@ export default function Home() {
             transformation.
           </p>
         </Link>
+        {/* React to React Native Converter */}
+        <Link
+          href="/react2native"
+          className="group bg-gray-800 shadow-lg rounded-2xl p-4 flex flex-col items-center justify-between hover:shadow-2xl transition-transform transform hover:-translate-y-1 border border-gray-700 h-[200px]"
+        >
+          <ArrowRightLeft className="min-w-10 min-h-10 text-indigo-500 mb-3 group-hover:scale-110 transition-transform" />
+          <h2 className="text-md font-bold text-gray-300 mb-2 text-center">
+            React.js Converter
+          </h2>
+          <p className="text-sm text-gray-400 text-center">
+            Convert React.js to React Native components with automatic code
+            transformation.
+          </p>
+        </Link>
         <Link
           href="/table"
           className="group bg-gray-800 shadow-lg rounded-2xl p-4 flex flex-col items-center justify-between hover:shadow-2xl transition-transform transform hover:-translate-y-1 border border-gray-700 h-[200px]"
