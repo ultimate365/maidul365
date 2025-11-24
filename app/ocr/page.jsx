@@ -148,30 +148,33 @@ export default function OCR() {
     }
   };
 
-  const onDrop = useCallback(async (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const dropped = Array.from(e.dataTransfer.files || []);
+  const onDrop = useCallback(
+    async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const dropped = Array.from(e.dataTransfer.files || []);
 
-    // Handle first dropped file
-    if (dropped.length > 0) {
-      const file = dropped[0];
-      setError("");
-      setIsPdf(false);
-      setPdfPageCount(0);
+      // Handle first dropped file
+      if (dropped.length > 0) {
+        const file = dropped[0];
+        setError("");
+        setIsPdf(false);
+        setPdfPageCount(0);
 
-      if (file.type === "application/pdf") {
-        const pdf = await handlePdfFile(file);
-        if (pdf) {
+        if (file.type === "application/pdf") {
+          const pdf = await handlePdfFile(file);
+          if (pdf) {
+            setFiles([file]);
+            setActiveIndex(0);
+          }
+        } else if (file.type.startsWith("image/")) {
           setFiles([file]);
           setActiveIndex(0);
         }
-      } else if (file.type.startsWith("image/")) {
-        setFiles([file]);
-        setActiveIndex(0);
       }
-    }
-  }, []);
+    },
+    [pdfJsLoaded]
+  );
 
   const onPaste = useCallback(async (e) => {
     const items = e.clipboardData?.items;
