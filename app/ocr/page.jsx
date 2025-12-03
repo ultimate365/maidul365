@@ -49,6 +49,7 @@ export default function OCR() {
   const [pdfPageCount, setPdfPageCount] = useState(0);
   const [currentPdfPage, setCurrentPdfPage] = useState(1);
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState("");
+  const [pdfThumbUrl, setPdfThumbUrl] = useState("");
   const [pdfJsLoaded, setPdfJsLoaded] = useState(false);
 
   const inputRef = useRef(null);
@@ -61,7 +62,7 @@ export default function OCR() {
 
       try {
         pdfjsLib = await import("pdfjs-dist");
-        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@5.4.54/build/pdf.worker.min.mjs`;
+        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
         setPdfJsLoaded(true);
       } catch (error) {
         console.error("Error loading PDF.js:", error);
@@ -118,6 +119,10 @@ export default function OCR() {
       const dataUrl = await renderPdfPageToImage(pdf, 1);
       setPdfPreviewUrl(dataUrl);
 
+      // Generate thumbnail for the first page
+      const thumbUrl = await renderPdfPageToImage(pdf, 1, 0.2);
+      setPdfThumbUrl(thumbUrl);
+
       return pdf;
     } catch (err) {
       console.error("Error loading PDF:", err);
@@ -133,6 +138,7 @@ export default function OCR() {
     setError("");
     setIsPdf(false);
     setPdfPageCount(0);
+    setPdfThumbUrl("");
 
     // Handle first file (for now we process one file at a time)
     const file = list[0];
@@ -160,6 +166,7 @@ export default function OCR() {
         setError("");
         setIsPdf(false);
         setPdfPageCount(0);
+        setPdfThumbUrl("");
 
         if (file.type === "application/pdf") {
           const pdf = await handlePdfFile(file);
@@ -206,27 +213,10 @@ export default function OCR() {
     };
   }, [onDrop, onPaste]);
 
-  const addByUrl = async () => {
-    setError("");
-    try {
-      if (!imageURL.trim()) return;
-      const res = await fetch(imageURL, { mode: "cors" });
-      const blob = await res.blob();
-      const file = new File([blob], `url-image-${Date.now()}.png`, {
-        type: blob.type || "image/png",
-      });
-      setFiles((prev) => [...prev, file]);
-      setImageURL("");
-      if (!files.length) setActiveIndex(0);
-    } catch (e) {
-      setError("Failed to fetch image from URL. Check CORS and the URL.");
-    }
-  };
-
-  const renderPdfPageToImage = async (pdf, pageNumber) => {
+  const renderPdfPageToImage = async (pdf, pageNumber, scale = 2.0) => {
     try {
       const page = await pdf.getPage(pageNumber);
-      const viewport = page.getViewport({ scale: 2.0 }); // Higher scale for better OCR
+      const viewport = page.getViewport({ scale }); // Higher scale for better OCR
 
       const canvas = document.createElement("canvas");
       const ctx = canvas.getContext("2d");
@@ -304,6 +294,15 @@ export default function OCR() {
     setProgress(0);
     setError("");
     setImageURL("");
+    setIsPdf(false);
+    setPdfPageCount(0);
+    setCurrentPdfPage(1);
+    setPdfPreviewUrl("");
+    setPdfThumbUrl("");
+    setLang("eng");
+    setPsm("3");
+    setAutoRotate(true);
+    setIsRunning(false);
   };
 
   const removeAt = (idx) => {
@@ -331,8 +330,8 @@ export default function OCR() {
 
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100">
-      <div className="max-w-6xl mx-auto p-4 grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-3 flex items-center justify-between mb-4">
+      <div className="max-w-6xl mx-auto p-4 gap-4">
+        <div className="mt-20 flex items-center justify-between bg-gray-800 rounded-xl shadow-md p-4 mb-4">
           <h1 className="text-2xl font-bold tracking-tight">Image & PDF OCR</h1>
           {(files.length > 0 || imageURL.trim() || ocrText.trim()) && (
             <div className="flex gap-2">
@@ -379,22 +378,6 @@ export default function OCR() {
               </p>
             </div>
 
-            <div className="mt-3 flex gap-2">
-              <input
-                type="url"
-                placeholder="https://example.com/image.jpg"
-                value={imageURL}
-                onChange={(e) => setImageURL(e.target.value)}
-                className="flex-1 px-3 py-2 border border-gray-600 bg-gray-700 rounded-xl"
-              />
-              <button
-                onClick={addByUrl}
-                className="px-3 py-2 rounded-xl border border-gray-600 bg-gray-700 hover:bg-gray-600"
-              >
-                Add URL
-              </button>
-            </div>
-
             {files.length > 0 && (
               <div className="mt-4">
                 <div className="flex items-center justify-between mb-2">
@@ -414,7 +397,11 @@ export default function OCR() {
                       onClick={() => setActiveIndex(i)}
                     >
                       <img
-                        src={URL.createObjectURL(f)}
+                        src={
+                          isPdf && pdfThumbUrl
+                            ? pdfThumbUrl
+                            : URL.createObjectURL(f)
+                        }
                         alt={f.name}
                         className="h-16 w-full object-cover"
                       />
