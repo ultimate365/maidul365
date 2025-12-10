@@ -1,5 +1,5 @@
 "use client";
-import React, { useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { readString, jsonToCSV } from "react-papaparse";
 import { Tooltip } from "react-tooltip";
@@ -10,6 +10,7 @@ export default function FileConverter() {
   const [showFormatDialog, setShowFormatDialog] = useState(false);
   const [conversionData, setConversionData] = useState(null);
   const [conversionFileName, setConversionFileName] = useState("");
+  const dropRef = useRef(null);
 
   // --- flatten JSON -> rows (only if it matches nested format) ---
   const flattenData = (data) => {
@@ -100,8 +101,8 @@ export default function FileConverter() {
     return cleanedRow;
   };
 
-  const handleFileUpload = (event) => {
-    const selectedFiles = Array.from(event.target.files);
+  const handleFiles = (files) => {
+    const selectedFiles = Array.from(files);
     selectedFiles.forEach((file) => {
       const fileName = file.name;
       const extension = fileName.split(".").pop().toLowerCase();
@@ -143,6 +144,11 @@ export default function FileConverter() {
         reader.readAsArrayBuffer(file);
       }
     });
+  };
+
+  const handleFileUpload = (event) => {
+    if (!event.target.files) return;
+    handleFiles(event.target.files);
   };
 
   const processCSVFile = (content, fileName) => {
@@ -241,8 +247,32 @@ export default function FileConverter() {
     resetFileInput();
   };
 
+  const onDrop = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const dropped = Array.from(e.dataTransfer.files || []);
+    handleFiles(dropped);
+  }, []);
+
+  useEffect(() => {
+    const el = dropRef.current;
+    if (!el) return;
+    const prevent = (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+    };
+    el.addEventListener("dragover", prevent);
+    el.addEventListener("dragenter", prevent);
+    el.addEventListener("drop", onDrop);
+    return () => {
+      el.removeEventListener("dragover", prevent);
+      el.removeEventListener("dragenter", prevent);
+      el.removeEventListener("drop", onDrop);
+    };
+  }, [onDrop]);
+
   return (
-    <div className="max-w-6xl mx-auto my-12 px-4">
+    <div ref={dropRef} className="max-w-6xl mx-auto my-12 px-4">
       <div className="container-main text-center">
         <h3 className="text-2xl font-semibold leading-relaxed mb-6">
           File Converter with Format Selection
@@ -258,6 +288,9 @@ export default function FileConverter() {
           multiple
           ref={ref}
         />
+        <p className="text-gray-400 text-sm mt-4">
+          Or drag and drop files here.
+        </p>
       </div>
 
       {showFormatDialog && (

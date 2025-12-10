@@ -1,17 +1,20 @@
 "use client";
-import React, { useRef } from "react";
+import React, { useCallback, useEffect, useRef } from "react";
 import toast from "react-hot-toast";
 import { readString, jsonToCSV } from "react-papaparse";
 import { Tooltip } from "react-tooltip";
 import * as XLSX from "xlsx";
 
 export default function CSV2JSON() {
-  const ref = useRef();
+  const inputRef = useRef(null);
+  const dropRef = useRef(null);
 
-  const handleFileUpload = (event) => {
+  const onPickFiles = (event) => {
     const selectedFiles = Array.from(event.target.files);
-
-    selectedFiles.forEach((file) => {
+    handleFile(selectedFiles);
+  };
+  const handleFile = (files) => {
+    files.forEach((file) => {
       const fileNameWithoutExtension = file.name
         .split(".")
         .slice(0, -1)
@@ -54,6 +57,20 @@ export default function CSV2JSON() {
       }
     });
   };
+  const onDrop = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const dropped = Array.from(e.dataTransfer.files || []);
+    handleFile(dropped);
+  };
+  const onPaste = useCallback(async (e) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    const files = Array.from(items)
+      .filter((item) => item.kind === "file")
+      .map((item) => item.getAsFile());
+    handleFile(files);
+  }, []);
 
   const downloadFile = (data, fileName, fileType) => {
     const blob = new Blob([data], { type: fileType });
@@ -63,7 +80,7 @@ export default function CSV2JSON() {
     a.download = fileName;
     a.click();
     a.remove();
-    ref.current.value = "";
+    inputRef.current.value = "";
   };
 
   const convertFile = (fileContent, fileName, extension) => {
@@ -131,9 +148,30 @@ export default function CSV2JSON() {
     }
   };
 
+  useEffect(() => {
+    const el = dropRef.current;
+    if (!el) return;
+    const prevent = (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+    };
+    el.addEventListener("dragover", prevent);
+    el.addEventListener("dragenter", prevent);
+    el.addEventListener("drop", onDrop);
+    window.addEventListener("paste", onPaste);
+    return () => {
+      el.removeEventListener("dragover", prevent);
+      el.removeEventListener("dragenter", prevent);
+      el.removeEventListener("drop", onDrop);
+      window.removeEventListener("paste", onPaste);
+    };
+  }, [onDrop, onPaste]);
   return (
     <div className="container my-5">
-      <div className="container-main bg-white text-gray-900 dark:bg-gray-900 dark:text-gray-100 p-6 rounded-xl shadow-md transition-colors">
+      <div
+        ref={dropRef}
+        className="container-main bg-white text-gray-900 dark:bg-gray-900 dark:text-gray-100 p-6 rounded-xl shadow-md transition-colors"
+      >
         <h3 className="text-lg font-semibold mb-4 text-center">
           CSV / Excel To JSON <br /> OR <br /> JSON To CSV <br /> File Converter
         </h3>
@@ -142,13 +180,19 @@ export default function CSV2JSON() {
           id="fileInput"
           className="form-control w-full p-2 rounded border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100"
           accept=".csv,.json,.xlsx,.xls"
-          onChange={handleFileUpload}
+          onChange={onPickFiles}
           multiple
-          ref={ref}
+          ref={inputRef}
         />
+        <button
+          onClick={() => inputRef.current?.click()}
+          className="my-4 px-3 py-2 rounded-xl border border-gray-600 bg-gray-700 hover:bg-gray-600"
+        >
+          Choose file
+        </button>
       </div>
       <Tooltip anchorSelect=".container-main" place="top">
-        Please upload only .csv, .json, or .xlsx/.xls files
+        Please upload or drag & drop only .csv, .json, or .xlsx/.xls files
       </Tooltip>
     </div>
   );
