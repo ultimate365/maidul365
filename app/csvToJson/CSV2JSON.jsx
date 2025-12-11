@@ -9,6 +9,7 @@ export default function CSV2JSON() {
   const inputRef = useRef(null);
   const dropRef = useRef(null);
 
+  const justDropped = useRef(false);
   const onPickFiles = (event) => {
     const selectedFiles = Array.from(event.target.files);
     handleFile(selectedFiles);
@@ -61,7 +62,11 @@ export default function CSV2JSON() {
     e.preventDefault();
     e.stopPropagation();
     const dropped = Array.from(e.dataTransfer.files || []);
+    justDropped.current = true;
     handleFile(dropped);
+    setTimeout(() => {
+      justDropped.current = false;
+    }, 200);
   };
   const onPaste = useCallback(async (e) => {
     const items = e.clipboardData?.items;
@@ -73,14 +78,20 @@ export default function CSV2JSON() {
   }, []);
 
   const downloadFile = (data, fileName, fileType) => {
-    const blob = new Blob([data], { type: fileType });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = fileName;
-    a.click();
-    a.remove();
-    inputRef.current.value = "";
+    try {
+      const blob = new Blob([data], { type: fileType });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName;
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      setTimeout(() => resetFileInput(), 100);
+    } catch (error) {
+      toast.error("Download failed.");
+      console.error(error);
+    }
   };
 
   const convertFile = (fileContent, fileName, extension) => {
@@ -106,7 +117,8 @@ export default function CSV2JSON() {
             )
             .map((row) => {
               const cleanedRow = {};
-              for (const key in row) {
+              const sortedKeys = Object.keys(row).sort();
+              for (const key of sortedKeys) {
                 if (
                   !isNaN(row[key]) &&
                   row[key].length >= 7 &&
@@ -170,7 +182,13 @@ export default function CSV2JSON() {
     <div className="container my-5">
       <div
         ref={dropRef}
-        className="container-main bg-white text-gray-900 dark:bg-gray-900 dark:text-gray-100 p-6 rounded-xl shadow-md transition-colors"
+        className="container-main text-center p-8 border-2 border-dashed border-gray-400 rounded-xl cursor-pointer hover:border-blue-500 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all"
+        onClick={() => {
+          if (justDropped.current) {
+            return;
+          }
+          inputRef.current?.click();
+        }}
       >
         <h3 className="text-lg font-semibold mb-4 text-center">
           CSV / Excel To JSON <br /> OR <br /> JSON To CSV <br /> File Converter
@@ -178,18 +196,15 @@ export default function CSV2JSON() {
         <input
           type="file"
           id="fileInput"
-          className="form-control w-full p-2 rounded border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100"
           accept=".csv,.json,.xlsx,.xls"
           onChange={onPickFiles}
           multiple
           ref={inputRef}
+          hidden
         />
-        <button
-          onClick={() => inputRef.current?.click()}
-          className="my-4 px-3 py-2 rounded-xl border border-gray-600 bg-gray-700 hover:bg-gray-600"
-        >
-          Choose file
-        </button>
+        <p className="text-gray-400 text-sm mt-4">
+          Click anywhere or drag and drop files here to upload.
+        </p>
       </div>
       <Tooltip anchorSelect=".container-main" place="top">
         Please upload or drag & drop only .csv, .json, or .xlsx/.xls files

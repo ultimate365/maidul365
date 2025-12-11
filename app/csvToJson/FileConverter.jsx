@@ -11,6 +11,7 @@ export default function FileConverter() {
   const [conversionData, setConversionData] = useState(null);
   const [conversionFileName, setConversionFileName] = useState("");
   const dropRef = useRef(null);
+  const justDropped = useRef(false);
 
   // --- flatten JSON -> rows (only if it matches nested format) ---
   const flattenData = (data) => {
@@ -75,7 +76,8 @@ export default function FileConverter() {
 
   const cleanRow = (row) => {
     const cleanedRow = {};
-    for (const key in row) {
+    const sortedKeys = Object.keys(row).sort();
+    for (const key of sortedKeys) {
       let value = row[key];
       if (typeof value === "number") {
         const strValue = value.toString();
@@ -220,19 +222,33 @@ export default function FileConverter() {
       handleError("Conversion error", error);
     } finally {
       setShowFormatDialog(false);
-      resetFileInput();
     }
   };
 
   const downloadFile = (data, fileName, fileType) => {
-    const blob = new Blob([data], { type: fileType });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = fileName;
-    a.click();
-    URL.revokeObjectURL(url);
-    ref.current.value = "";
+    try {
+      const blob = new Blob([data], { type: fileType });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      // Prevent the container's onClick from opening the file input
+      // (a click may follow the drop/release and trigger the input).
+      justDropped.current = true;
+      setTimeout(() => {
+        justDropped.current = false;
+      }, 500);
+
+      // Reset after a short delay to allow the download to start
+      setTimeout(() => {
+        resetFileInput();
+      }, 100);
+    } catch (error) {
+      handleError("Download failed", error);
+    }
   };
 
   const resetFileInput = () => {
@@ -247,12 +263,24 @@ export default function FileConverter() {
     resetFileInput();
   };
 
-  const onDrop = useCallback((e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const dropped = Array.from(e.dataTransfer.files || []);
-    handleFiles(dropped);
-  }, []);
+  const handleCancel = () => {
+    setShowFormatDialog(false);
+    resetFileInput();
+  };
+
+  const onDrop = useCallback(
+    (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      justDropped.current = true;
+      const dropped = Array.from(e.dataTransfer.files || []);
+      handleFiles(dropped);
+      setTimeout(() => {
+        justDropped.current = false;
+      }, 200);
+    },
+    [handleFiles]
+  );
 
   useEffect(() => {
     const el = dropRef.current;
@@ -272,7 +300,16 @@ export default function FileConverter() {
   }, [onDrop]);
 
   return (
-    <div ref={dropRef} className="max-w-6xl mx-auto my-12 px-4">
+    <div
+      ref={dropRef}
+      className="max-w-6xl mx-auto my-12 px-4 py-8 border-2 border-dashed border-gray-400 rounded-xl cursor-pointer hover:border-blue-500 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all"
+      onClick={() => {
+        if (justDropped.current) {
+          return;
+        }
+        ref.current?.click();
+      }}
+    >
       <div className="container-main text-center">
         <h3 className="text-2xl font-semibold leading-relaxed mb-6">
           File Converter with Format Selection
@@ -282,14 +319,14 @@ export default function FileConverter() {
         <input
           type="file"
           id="fileInput"
-          className="block w-full rounded-md border border-gray-600 bg-gray-900 p-2 text-sm text-white placeholder-gray-400 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-400"
           accept=".csv,.json,.xlsx,.xls"
           onChange={handleFileUpload}
           multiple
           ref={ref}
+          hidden
         />
         <p className="text-gray-400 text-sm mt-4">
-          Or drag and drop files here.
+          Click anywhere or drag and drop files here to upload.
         </p>
       </div>
 
@@ -312,13 +349,7 @@ export default function FileConverter() {
               </button>
             </div>
             <div className="modal-buttons">
-              <button
-                className="btn-cancel"
-                onClick={() => {
-                  setShowFormatDialog(false);
-                  resetFileInput();
-                }}
-              >
+              <button className="btn-cancel" onClick={handleCancel}>
                 Cancel
               </button>
             </div>
