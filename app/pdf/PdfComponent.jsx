@@ -106,7 +106,7 @@ const PSM_OPTIONS = [
 
 const PdfComponent = () => {
   const fileRef = useRef();
-  const [showSingleInput, setShowSingleInput] = useState(true);
+  const [activeTool, setActiveTool] = useState("edit"); // 'edit', 'merge', 'images'
   const [file, setFile] = useState(null);
   const [pdf, setPdf] = useState(null);
   const [pages, setPages] = useState([]); // {thumbUrl, width, height}
@@ -232,7 +232,7 @@ const PdfComponent = () => {
     const out = await PDFDocument.create();
 
     const indices = (onlyRange ? onlyRange : order).filter(
-      (i) => pages[i] !== undefined
+      (i) => pages[i] !== undefined,
     );
 
     for (const i of indices) {
@@ -265,7 +265,7 @@ const PdfComponent = () => {
 
       const dataUrl = rotated.toDataURL("image/jpeg", quality);
       const jpgBytes = Uint8Array.from(atob(dataUrl.split(",")[1]), (c) =>
-        c.charCodeAt(0)
+        c.charCodeAt(0),
       );
       const jpg = await out.embedJpg(jpgBytes);
       const pageOut = out.addPage([rotated.width, rotated.height]);
@@ -311,7 +311,7 @@ const PdfComponent = () => {
 
     try {
       const indices = (pageIndices || order).filter(
-        (i) => pages[i] !== undefined
+        (i) => pages[i] !== undefined,
       );
       const results = [];
       let completed = 0;
@@ -327,13 +327,13 @@ const PdfComponent = () => {
             if (m.status)
               setOcrStatus(
                 m.status +
-                  (m.progress ? ` (${Math.round(m.progress * 100)}%)` : "")
+                  (m.progress ? ` (${Math.round(m.progress * 100)}%)` : ""),
               );
             if (typeof m.progress === "number") {
               // weigh page progress into overall
               const pageProgress = m.progress;
               const overall = Math.round(
-                ((completed + pageProgress) / indices.length) * 100
+                ((completed + pageProgress) / indices.length) * 100,
               );
               setOcrProgress(overall);
             }
@@ -473,7 +473,7 @@ const PdfComponent = () => {
   const onExtractRange = async () => {
     const input = prompt(
       "Enter page range to extract (e.g., 1-3,5,7). Uses current order.",
-      "1-3"
+      "1-3",
     );
     if (!input) return;
 
@@ -600,6 +600,90 @@ const PdfComponent = () => {
     }
   };
 
+  // Image to PDF Logic
+  const [imageFiles, setImageFiles] = useState([]);
+  const imageInputRef = useRef();
+
+  const onImagesUpload = (e) => {
+    if (!e.target.files) return;
+    const files = Array.from(e.target.files);
+    const newImages = files.map((f) => ({
+      file: f,
+      id: Math.random().toString(36).substr(2, 9),
+      previewUrl: URL.createObjectURL(f),
+      name: f.name,
+    }));
+    setImageFiles((prev) => [...prev, ...newImages]);
+    if (imageInputRef.current) imageInputRef.current.value = "";
+  };
+
+  const removeImage = (id) => {
+    setImageFiles((prev) => prev.filter((img) => img.id !== id));
+  };
+
+  const clearImages = () => {
+    setImageFiles([]);
+    if (imageInputRef.current) imageInputRef.current.value = "";
+    setStatus("");
+  };
+
+  const convertImagesToPdf = async (merge) => {
+    if (imageFiles.length === 0) return;
+    setStatus("Converting images...");
+    try {
+      const processImage = async (doc, img) => {
+        const buffer = await img.file.arrayBuffer();
+        let image;
+        try {
+          if (img.file.type === "image/png") image = await doc.embedPng(buffer);
+          else image = await doc.embedJpg(buffer);
+        } catch (e) {
+          // Fallback: try the other format if type detection failed or was wrong
+          try {
+            image = await doc.embedJpg(buffer);
+          } catch (e2) {
+            try {
+              image = await doc.embedPng(buffer);
+            } catch (e3) {
+              return null;
+            }
+          }
+        }
+        return image;
+      };
+
+      if (merge) {
+        const doc = await PDFDocument.create();
+        for (const img of imageFiles) {
+          const image = await processImage(doc, img);
+          if (!image) continue;
+          const { width, height } = image.scale(1);
+          const page = doc.addPage([width, height]);
+          page.drawImage(image, { x: 0, y: 0, width, height });
+        }
+        const pdfBytes = await doc.save();
+        const blob = new Blob([pdfBytes], { type: "application/pdf" });
+        download(blob, `images-merged-${Date.now()}.pdf`);
+      } else {
+        for (const img of imageFiles) {
+          const doc = await PDFDocument.create();
+          const image = await processImage(doc, img);
+          if (!image) continue;
+          const { width, height } = image.scale(1);
+          const page = doc.addPage([width, height]);
+          page.drawImage(image, { x: 0, y: 0, width, height });
+          const pdfBytes = await doc.save();
+          const blob = new Blob([pdfBytes], { type: "application/pdf" });
+          download(blob, `${img.name.replace(/\.[^/.]+$/, "")}.pdf`);
+        }
+      }
+      setStatus("Done.");
+    } catch (err) {
+      console.error(err);
+      setStatus("Error converting images.");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-gray-950 dark:to-gray-900 text-gray-900 dark:text-gray-100 transition-colors">
       <div className="max-w-6xl mx-auto p-4 gap-4">
@@ -607,13 +691,39 @@ const PdfComponent = () => {
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
             PDF Compressor & Editor
           </h1>
-          <div>
+          <div className="flex gap-2 flex-wrap justify-end">
             <button
               type="button"
-              onClick={() => setShowSingleInput(!showSingleInput)}
-              className="w-full sm:w-auto px-4 py-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700"
+              onClick={() => setActiveTool("edit")}
+              className={`px-3 py-2 rounded-xl text-sm font-medium transition-colors ${
+                activeTool === "edit"
+                  ? "bg-indigo-600 text-white"
+                  : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+              }`}
             >
-              {showSingleInput ? "Merge PDF" : "Edit A PDF"}
+              Edit PDF
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTool("merge")}
+              className={`px-3 py-2 rounded-xl text-sm font-medium transition-colors ${
+                activeTool === "merge"
+                  ? "bg-indigo-600 text-white"
+                  : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+              }`}
+            >
+              Merge PDF
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTool("images")}
+              className={`px-3 py-2 rounded-xl text-sm font-medium transition-colors ${
+                activeTool === "images"
+                  ? "bg-indigo-600 text-white"
+                  : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+              }`}
+            >
+              JPG to PDF
             </button>
           </div>
         </div>
@@ -621,7 +731,7 @@ const PdfComponent = () => {
         <div className="grid gap-4 md:grid-cols-3">
           {/* Left controls */}
           <section className="md:col-span-1 space-y-4">
-            {showSingleInput ? (
+            {activeTool === "edit" && (
               <>
                 <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 p-4 shadow-sm transition-colors">
                   <h2 className="font-semibold mb-2 dark:text-gray-100">
@@ -790,7 +900,7 @@ const PdfComponent = () => {
                             runOcrOnPages(
                               Array.from(selected).length
                                 ? order.filter((i) => selected.has(i))
-                                : null
+                                : null,
                             )
                           }
                           disabled={!pdf || isRunningOcr || pages.length === 0}
@@ -825,7 +935,8 @@ const PdfComponent = () => {
                   </>
                 )}
               </>
-            ) : (
+            )}
+            {activeTool === "merge" && (
               <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 p-4 shadow-sm">
                 {/* Merge tool */}
 
@@ -843,6 +954,23 @@ const PdfComponent = () => {
                 </div>
               </div>
             )}
+            {activeTool === "images" && (
+              <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 p-4 shadow-sm">
+                <h2 className="font-semibold mb-2">Images to PDF</h2>
+                <input
+                  type="file"
+                  accept="image/jpeg, image/png, image/jpg"
+                  ref={imageInputRef}
+                  multiple
+                  onChange={onImagesUpload}
+                  className="cursor-pointer block w-full text-sm file:mr-4 file:rounded-xl file:border file:border-gray-200 file:bg-gray-100 file:px-4 file:py-2 file:text-sm hover:file:bg-blue-700 dark:file:bg-gray-800 dark:file:border-gray-700"
+                />
+                <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                  Supports JPG and PNG.
+                </p>
+              </div>
+            )}
+
             <div className="rounded-2xl border border-dashed border-gray-300 dark:border-gray-700 p-4 text-xs text-gray-500">
               <p className="font-medium mb-1">Tips</p>
               <ul className="list-disc pl-5 space-y-1">
@@ -862,8 +990,8 @@ const PdfComponent = () => {
 
           {/* Thumbnails */}
           <section className="md:col-span-2">
-            {!showSingleInput ? (
-              mergeFiles.length > 0 ? (
+            {activeTool === "merge" &&
+              (mergeFiles.length > 0 ? (
                 <div className="grid place-items-center h-64 rounded-2xl  text-gray-500 my-4">
                   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                     {mergeOrder.map((id) => {
@@ -921,42 +1049,113 @@ const PdfComponent = () => {
                 <div className="grid place-items-center h-64 rounded-2xl border border-dashed border-gray-300 dark:border-gray-700 text-gray-500">
                   Load a PDF to begin.
                 </div>
-              )
-            ) : null}
-            {showSingleInput && !pdf && !mergeFiles.length > 0 ? (
-              <div className="grid place-items-center h-64 rounded-2xl border border-dashed border-gray-300 dark:border-gray-700 text-gray-500">
-                Load a PDF to begin.
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                {order.map((i) => (
-                  <PageThumb
-                    key={i}
-                    page={pages[i]}
-                    i={i}
-                    selected={selected.has(i)}
-                    rotation={rotations[i] || 0}
-                    onToggle={onToggle}
-                    onRotate={onRotate}
-                    onDragStart={onDragStart}
-                    onDragOver={onDragOver}
-                    onDrop={onDrop}
-                    onRunOcr={runOcrOnPage}
-                  />
-                ))}
-                {order.length > 0 && (
-                  <div className="col-span-full flex justify-center">
+              ))}
+
+            {activeTool === "images" &&
+              (imageFiles.length > 0 ? (
+                <div className="my-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                    {imageFiles.map((img) => (
+                      <div
+                        key={img.id}
+                        className="relative flex flex-col items-center gap-2 rounded-lg border px-2 py-2 bg-gray-100 dark:bg-gray-800"
+                      >
+                        <button
+                          onClick={() => removeImage(img.id)}
+                          className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600"
+                          title="Remove"
+                        >
+                          ×
+                        </button>
+                        <img
+                          src={img.previewUrl}
+                          alt="preview"
+                          className="w-full h-32 object-contain rounded bg-white dark:bg-gray-900"
+                        />
+                        <p className="text-xs text-center truncate w-full px-1">
+                          {img.name}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex flex-wrap gap-4 mt-6 justify-center">
+                    {imageFiles.length > 1 ? (
+                      <>
+                        <button
+                          onClick={() => convertImagesToPdf(true)}
+                          className="px-4 py-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700"
+                        >
+                          Merge all into one PDF
+                        </button>
+                        <button
+                          onClick={() => convertImagesToPdf(false)}
+                          className="px-4 py-2 rounded-xl bg-gray-800 text-white hover:bg-gray-900 dark:bg-gray-700 dark:hover:bg-gray-600"
+                        >
+                          Download each as PDF
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        onClick={() => convertImagesToPdf(false)}
+                        className="px-4 py-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700"
+                      >
+                        Download PDF
+                      </button>
+                    )}
                     <button
-                      type="button"
-                      onClick={clearFile}
-                      className="mt-4 px-4 py-2 rounded-xl bg-rose-600 text-white hover:bg-rose-800"
+                      onClick={clearImages}
+                      className="px-4 py-2 rounded-xl bg-rose-600 text-white hover:bg-rose-700"
                     >
-                      Clear
+                      {imageFiles.length > 1 ? "Clear All" : "Clear"}
                     </button>
                   </div>
-                )}
-              </div>
-            )}
+                  {status && (
+                    <p className="text-center text-sm text-gray-500 mt-2">
+                      {status}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <div className="grid place-items-center h-64 rounded-2xl border border-dashed border-gray-300 dark:border-gray-700 text-gray-500">
+                  Select images to begin.
+                </div>
+              ))}
+
+            {activeTool === "edit" &&
+              (!pdf ? (
+                <div className="grid place-items-center h-64 rounded-2xl border border-dashed border-gray-300 dark:border-gray-700 text-gray-500">
+                  Load a PDF to begin.
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                  {order.map((i) => (
+                    <PageThumb
+                      key={i}
+                      page={pages[i]}
+                      i={i}
+                      selected={selected.has(i)}
+                      rotation={rotations[i] || 0}
+                      onToggle={onToggle}
+                      onRotate={onRotate}
+                      onDragStart={onDragStart}
+                      onDragOver={onDragOver}
+                      onDrop={onDrop}
+                      onRunOcr={runOcrOnPage}
+                    />
+                  ))}
+                  {order.length > 0 && (
+                    <div className="col-span-full flex justify-center">
+                      <button
+                        type="button"
+                        onClick={clearFile}
+                        className="mt-4 px-4 py-2 rounded-xl bg-rose-600 text-white hover:bg-rose-800"
+                      >
+                        Clear
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
             {/* OCR Results */}
             {ocrText.trim() && (
               <div className="col-span-full mt-6 p-4 rounded-2xl border bg-white dark:bg-gray-800">
