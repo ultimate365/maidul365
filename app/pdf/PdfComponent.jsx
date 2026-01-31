@@ -572,6 +572,28 @@ const PdfComponent = () => {
     if (blob) download(blob, `selected-${time}.pdf`);
   };
 
+  const onDownloadSelectedImages = async () => {
+    if (selected.size === 0) {
+      alert("No pages selected!");
+      return;
+    }
+    setStatus("Downloading images...");
+    const indices = order.filter((i) => selected.has(i));
+    for (const i of indices) {
+      const dataUrl = await renderPageToDataUrl(i);
+      if (dataUrl) {
+        const a = document.createElement("a");
+        a.href = dataUrl;
+        a.download = `page-${i + 1}-${Date.now()}.png`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        await new Promise((resolve) => setTimeout(resolve, 300));
+      }
+    }
+    setStatus("Done.");
+  };
+
   const onMergeDragStart = (e, id) => {
     setMergeDragIndex(id);
     e.dataTransfer.effectAllowed = "move";
@@ -836,6 +858,14 @@ const PdfComponent = () => {
                               className="cursor-pointer px-3 py-2 rounded-xl bg-indigo-700 text-white hover:bg-blue-700"
                             >
                               Download selected
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={onDownloadSelectedImages}
+                              className="cursor-pointer px-3 py-2 rounded-xl bg-violet-600 text-white hover:bg-violet-700"
+                            >
+                              Download as Image
                             </button>
 
                             <button
