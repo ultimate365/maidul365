@@ -18,7 +18,7 @@ export default function FileConverter() {
     if (!Array.isArray(data)) return data;
 
     const isNestedFormat = data.some(
-      (item) => item && typeof item === "object" && Array.isArray(item.leaves)
+      (item) => item && typeof item === "object" && Array.isArray(item.leaves),
     );
 
     if (!isNestedFormat) return data;
@@ -51,7 +51,7 @@ export default function FileConverter() {
         typeof row === "object" &&
         "month" in row &&
         "year" in row &&
-        ("monthId" in row || "id" in row)
+        ("monthId" in row || "id" in row),
     );
 
     if (!isFlattenedFormat) return rows;
@@ -72,6 +72,21 @@ export default function FileConverter() {
     });
 
     return Object.values(grouped);
+  };
+
+  // --- Recursive sort keys ---
+  const sortObjectKeys = (obj) => {
+    if (Array.isArray(obj)) {
+      return obj.map(sortObjectKeys);
+    } else if (obj !== null && typeof obj === "object") {
+      return Object.keys(obj)
+        .sort()
+        .reduce((acc, key) => {
+          acc[key] = sortObjectKeys(obj[key]);
+          return acc;
+        }, {});
+    }
+    return obj;
   };
 
   const cleanRow = (row) => {
@@ -159,16 +174,17 @@ export default function FileConverter() {
       complete: (results) => {
         const cleanedData = results.data
           .filter((row) =>
-            Object.values(row).some((v) => v !== null && v !== "")
+            Object.values(row).some((v) => v !== null && v !== ""),
           )
           .map(cleanRow);
 
         const nested = nestData(cleanedData);
+        const sortedData = sortObjectKeys(nested);
 
         downloadFile(
-          JSON.stringify(nested, null, 2),
+          JSON.stringify(sortedData, null, 2),
           `${fileName}.json`,
-          "application/json"
+          "application/json",
         );
       },
       error: (error) => handleError("CSV processing error", error),
@@ -183,11 +199,12 @@ export default function FileConverter() {
       const rows = XLSX.utils.sheet_to_json(worksheet).map(cleanRow);
 
       const nested = nestData(rows);
+      const sortedData = sortObjectKeys(nested);
 
       downloadFile(
-        JSON.stringify(nested, null, 2),
+        JSON.stringify(sortedData, null, 2),
         `${fileName}.json`,
-        "application/json"
+        "application/json",
       );
     } catch (error) {
       handleError("Excel processing error", error);
@@ -199,7 +216,8 @@ export default function FileConverter() {
 
     try {
       // 🔥 flatten only if nested
-      const flatData = flattenData(conversionData);
+      let flatData = flattenData(conversionData);
+      flatData = sortObjectKeys(flatData);
 
       if (format === "csv") {
         const csv = jsonToCSV(flatData);
@@ -215,7 +233,7 @@ export default function FileConverter() {
         downloadFile(
           xlsxBuffer,
           `${conversionFileName}.xlsx`,
-          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         );
       }
     } catch (error) {
@@ -279,7 +297,7 @@ export default function FileConverter() {
         justDropped.current = false;
       }, 200);
     },
-    [handleFiles]
+    [handleFiles],
   );
 
   useEffect(() => {
