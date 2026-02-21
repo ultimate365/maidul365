@@ -462,6 +462,7 @@ const PdfComponent = () => {
     setOrigSize(0);
     if (fileRef.current) {
       fileRef.current.value = null;
+      fileRef.current.files = null;
     }
   };
 
@@ -619,11 +620,13 @@ const PdfComponent = () => {
     setStatus("");
     if (mergeRef.current) {
       mergeRef.current.value = null;
+      mergeRef.current.files = null;
     }
   };
 
   // Image to PDF Logic
   const [imageFiles, setImageFiles] = useState([]);
+  const [imageDragIndex, setImageDragIndex] = useState(null);
   const imageInputRef = useRef();
 
   const onImagesUpload = (e) => {
@@ -645,8 +648,29 @@ const PdfComponent = () => {
 
   const clearImages = () => {
     setImageFiles([]);
-    if (imageInputRef.current) imageInputRef.current.value = "";
+    if (imageInputRef.current) {
+      imageInputRef.current.value = "";
+      imageInputRef.current.files = null;
+    }
     setStatus("");
+  };
+
+  const onImageDragStart = (e, index) => {
+    setImageDragIndex(index);
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const onImageDrop = (e, dropIndex) => {
+    e.preventDefault();
+    if (imageDragIndex === null || imageDragIndex === dropIndex) return;
+
+    setImageFiles((prev) => {
+      const newFiles = [...prev];
+      const movedItem = newFiles.splice(imageDragIndex, 1)[0];
+      newFiles.splice(dropIndex, 0, movedItem);
+      return newFiles;
+    });
+    setImageDragIndex(null);
   };
 
   const convertImagesToPdf = async (merge) => {
@@ -998,6 +1022,14 @@ const PdfComponent = () => {
                 <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
                   Supports JPG and PNG.
                 </p>
+                {imageFiles.length > 0 && (
+                  <button
+                    onClick={clearImages}
+                    className="px-4 py-2 rounded-xl bg-rose-600 text-white hover:bg-rose-700"
+                  >
+                    {imageFiles.length > 1 ? "Clear All" : "Clear"}
+                  </button>
+                )}
               </div>
             )}
 
@@ -1085,10 +1117,14 @@ const PdfComponent = () => {
               (imageFiles.length > 0 ? (
                 <div className="my-4">
                   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                    {imageFiles.map((img) => (
+                    {imageFiles.map((img, index) => (
                       <div
                         key={img.id}
-                        className="relative flex flex-col items-center gap-2 rounded-lg border px-2 py-2 bg-gray-100 dark:bg-gray-800"
+                        draggable
+                        onDragStart={(e) => onImageDragStart(e, index)}
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={(e) => onImageDrop(e, index)}
+                        className="relative flex flex-col items-center gap-2 rounded-lg border px-2 py-2 bg-gray-100 dark:bg-gray-800 cursor-grab active:cursor-grabbing"
                       >
                         <button
                           onClick={() => removeImage(img.id)}
