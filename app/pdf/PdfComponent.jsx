@@ -18,6 +18,7 @@ const PageThumb = ({
   onDragOver,
   onDrop,
   onRunOcr,
+  onPreview,
 }) => {
   return (
     <div
@@ -45,8 +46,10 @@ const PageThumb = ({
         ⟳ 90°
       </button>
       <div
-        className="relative w-full overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 transition-colors"
+        className="relative w-full overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 transition-colors cursor-pointer"
         style={{ aspectRatio: "3/4" }}
+        onClick={onPreview}
+        title={`Preview page ${i + 1}`}
       >
         {page.thumbUrl ? (
           <img
@@ -104,6 +107,50 @@ const PSM_OPTIONS = [
   { label: "Sparse text — psm 11", value: "11" },
 ];
 
+const PreviewModal = ({ url, rotation, onClose, isLoading }) => {
+  useEffect(() => {
+    const handleKey = (e) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [onClose]);
+
+  if (!url && !isLoading) return null;
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <div className="relative" onClick={(e) => e.stopPropagation()}>
+        {isLoading && (
+          <div className="text-white text-lg">
+            Loading high-quality preview…
+          </div>
+        )}
+        {url && (
+          <img
+            src={url}
+            alt="Page preview"
+            className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg shadow-2xl bg-white"
+            style={{ transform: `rotate(${rotation}deg)` }}
+          />
+        )}
+        <button
+          onClick={onClose}
+          className="absolute -top-2 -right-2 text-white bg-gray-800 rounded-full h-8 w-8 flex items-center justify-center text-xl hover:bg-gray-700"
+          title="Close (Esc)"
+        >
+          &times;
+        </button>
+      </div>
+    </div>
+  );
+};
+
 const PdfComponent = () => {
   const fileRef = useRef();
   const [activeTool, setActiveTool] = useState("edit"); // 'edit', 'merge', 'images'
@@ -126,6 +173,9 @@ const PdfComponent = () => {
   const [ocrProgress, setOcrProgress] = useState(0);
   const [ocrStatus, setOcrStatus] = useState("");
   const [ocrError, setOcrError] = useState("");
+  // Preview state
+  const [previewingPage, setPreviewingPage] = useState(null); // { index, url, rotation }
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
 
   // Load the PDF & thumbnails
   useEffect(() => {
@@ -286,6 +336,29 @@ const PdfComponent = () => {
     const blob = new Blob([bytes], { type: "application/pdf" });
     setStatus(`Done. Output size ~ ${bytesToSize(bytes.byteLength)}`);
     return blob;
+  };
+
+  const showPreview = async (pageIndex) => {
+    if (!pdf) return;
+    setIsPreviewLoading(true);
+    // Set a placeholder with rotation info immediately
+    setPreviewingPage({
+      index: pageIndex,
+      url: null,
+      rotation: rotations[pageIndex] || 0,
+    });
+    const dataUrl = await renderPageToDataUrl(pageIndex);
+    // Update with the high-res URL
+    setPreviewingPage({
+      index: pageIndex,
+      url: dataUrl,
+      rotation: rotations[pageIndex] || 0,
+    });
+    setIsPreviewLoading(false);
+  };
+
+  const closePreview = () => {
+    setPreviewingPage(null);
   };
 
   // OCR helpers
@@ -1207,6 +1280,7 @@ const PdfComponent = () => {
                       onDragOver={onDragOver}
                       onDrop={onDrop}
                       onRunOcr={runOcrOnPage}
+                      onPreview={() => showPreview(i)}
                     />
                   ))}
                   {order.length > 0 && (
@@ -1267,6 +1341,14 @@ const PdfComponent = () => {
             uploaded to a server.
           </p>
         </footer>
+        {previewingPage && (
+          <PreviewModal
+            isLoading={isPreviewLoading}
+            url={previewingPage.url}
+            rotation={previewingPage.rotation}
+            onClose={closePreview}
+          />
+        )}
       </div>
     </div>
   );
