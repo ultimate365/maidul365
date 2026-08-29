@@ -13,67 +13,6 @@ export default function FileConverter() {
   const dropRef = useRef(null);
   const justDropped = useRef(false);
 
-  // --- flatten JSON -> rows (only if it matches nested format) ---
-  const flattenData = (data) => {
-    if (!Array.isArray(data)) return data;
-
-    const isNestedFormat = data.some(
-      (item) => item && typeof item === "object" && Array.isArray(item.leaves),
-    );
-
-    if (!isNestedFormat) return data;
-
-    const flattened = [];
-    data.forEach((item) => {
-      if (Array.isArray(item.leaves)) {
-        item.leaves.forEach((leave) => {
-          flattened.push({
-            month: item.month,
-            year: item.year,
-            monthId: item.id,
-            ...leave,
-          });
-        });
-      } else {
-        flattened.push(item);
-      }
-    });
-    return flattened;
-  };
-
-  // --- group rows -> nested JSON (only if it looks flattened) ---
-  const nestData = (rows) => {
-    if (!Array.isArray(rows)) return rows;
-
-    const isFlattenedFormat = rows.some(
-      (row) =>
-        row &&
-        typeof row === "object" &&
-        "month" in row &&
-        "year" in row &&
-        ("monthId" in row || "id" in row),
-    );
-
-    if (!isFlattenedFormat) return rows;
-
-    const grouped = {};
-    rows.forEach((row) => {
-      const { month, year, monthId, id, ...leave } = row;
-      const groupId = monthId || id || `${month}-${year}`;
-      if (!grouped[groupId]) {
-        grouped[groupId] = {
-          month,
-          year,
-          id: groupId,
-          leaves: [],
-        };
-      }
-      grouped[groupId].leaves.push(leave);
-    });
-
-    return Object.values(grouped);
-  };
-
   // --- Recursive sort keys ---
   const sortObjectKeys = (obj) => {
     if (Array.isArray(obj)) {
@@ -116,6 +55,54 @@ export default function FileConverter() {
       cleanedRow[key] = value;
     }
     return cleanedRow;
+  };
+
+  // --- Serialize arrays and objects to JSON strings for XLSX export ---
+  const serializeComplexTypes = (data) => {
+    if (!Array.isArray(data)) return data;
+
+    return data.map((row) => {
+      const serializedRow = {};
+      for (const key in row) {
+        const value = row[key];
+        if (
+          Array.isArray(value) ||
+          (value !== null && typeof value === "object")
+        ) {
+          serializedRow[key] = JSON.stringify(value);
+        } else {
+          serializedRow[key] = value;
+        }
+      }
+      return serializedRow;
+    });
+  };
+
+  // --- Deserialize JSON strings back to arrays and objects from XLSX ---
+  const deserializeComplexTypes = (data) => {
+    if (!Array.isArray(data)) return data;
+
+    return data.map((row) => {
+      const deserializedRow = {};
+      for (const key in row) {
+        let value = row[key];
+        if (typeof value === "string") {
+          const trimmed = value.trim();
+          if (
+            (trimmed.startsWith("{") && trimmed.endsWith("}")) ||
+            (trimmed.startsWith("[") && trimmed.endsWith("]"))
+          ) {
+            try {
+              value = JSON.parse(trimmed);
+            } catch (e) {
+              // Keep as string if JSON parse fails
+            }
+          }
+        }
+        deserializedRow[key] = value;
+      }
+      return deserializedRow;
+    });
   };
 
   const handleFiles = (files) => {
@@ -178,8 +165,7 @@ export default function FileConverter() {
           )
           .map(cleanRow);
 
-        const nested = nestData(cleanedData);
-        const sortedData = sortObjectKeys(nested);
+        const sortedData = sortObjectKeys(cleanedData);
 
         downloadFile(
           JSON.stringify(sortedData, null, 2),
@@ -197,9 +183,9 @@ export default function FileConverter() {
       const workbook = XLSX.read(data, { type: "array" });
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json(worksheet).map(cleanRow);
+      const deserializedRows = deserializeComplexTypes(rows);
 
-      const nested = nestData(rows);
-      const sortedData = sortObjectKeys(nested);
+      const sortedData = sortObjectKeys(deserializedRows);
 
       downloadFile(
         JSON.stringify(sortedData, null, 2),
@@ -215,15 +201,14 @@ export default function FileConverter() {
     if (!conversionData || !conversionFileName) return;
 
     try {
-      // 🔥 flatten only if nested
-      let flatData = flattenData(conversionData);
-      flatData = sortObjectKeys(flatData);
+      let flatData = sortObjectKeys(conversionData);
 
       if (format === "csv") {
         const csv = jsonToCSV(flatData);
         downloadFile(csv, `${conversionFileName}.csv`, "text/csv");
       } else if (format === "xlsx") {
-        const worksheet = XLSX.utils.json_to_sheet(flatData);
+        const serializedData = serializeComplexTypes(flatData);
+        const worksheet = XLSX.utils.json_to_sheet(serializedData);
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "Sheet1");
         const xlsxBuffer = XLSX.write(workbook, {

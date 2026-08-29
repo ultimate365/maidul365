@@ -7,7 +7,7 @@ export default function HomePage() {
   const [showOld, setShowOld] = useState(false);
   return (
     <div className="container my-5 mx-auto flex flex-col items-center justify-center h-screen">
-      {showOld ? (
+      {/* {showOld ? (
         <div className="d-flex flex-column align-items-center justify-content-center h-screen">
           <h1 className="text-2xl font-bold">Old CSV to JSON Converter</h1>
           <CSV2JSON />
@@ -29,7 +29,19 @@ export default function HomePage() {
             Switch to Old Converter
           </button>
         </div>
-      )}
+      )} */}
+      <div className="d-flex flex-column align-items-center justify-content-center h-screen">
+        <h1 className="text-2xl font-bold">
+          EXCEL to JSON or JSON to EXCEL File Converter
+        </h1>
+        <FileConverter />
+        {/* <button
+            onClick={() => setShowOld(true)}
+            className="mt-4 bg-blue-500 text-white px-4 py-2 rounded"
+          >
+            Switch to Old Converter
+          </button> */}
+      </div>
     </div>
   );
 }
