@@ -313,8 +313,8 @@ export default function FileConverter() {
         ref.current?.click();
       }}
     >
-      <div className="container-main text-center">
-        <h3 className="text-2xl font-semibold leading-relaxed mb-6">
+      <div className="text-center">
+        <h3 className="text-2xl font-semibold leading-relaxed mb-6 text-neutral-300 hover:text-neutral-500 transition-colors">
           File Converter with Format Selection
           <br />
           (JSON → CSV/XLSX | CSV/Excel → JSON)
