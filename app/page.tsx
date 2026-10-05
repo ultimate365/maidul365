@@ -82,6 +82,19 @@ export default function Home() {
             Convert between CSV and JSON formats with ease.
           </p>
         </Link>
+        {/* Mutual Fund Tools */}
+        <Link
+          href="/mutualfund"
+          className="group bg-gray-800 shadow-lg rounded-2xl p-4 flex flex-col items-center justify-between hover:shadow-2xl transition-transform transform hover:-translate-y-1 border border-gray-700 h-[200px]"
+        >
+          <FileSpreadsheet className="w-10 h-10 text-yellow-500 mb-3 group-hover:scale-110 transition-transform" />
+          <h2 className="text-lg font-bold text-gray-300 mb-2 text-center">
+            Mutual Fund Tools
+          </h2>
+          <p className="text-sm text-gray-400 text-center">
+            Analyze and track mutual fund data with our specialized tools.
+          </p>
+        </Link>
         {/* Next to React Converter */}
         <Link
           href="/nextToReact"
